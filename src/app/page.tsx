@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Facebook, Linkedin, Instagram } from 'lucide-react';
+import { Facebook, Linkedin, Instagram, Menu, X } from 'lucide-react';
 // ou selon la bibliothèque d'icônes que vous utilisez
 import { 
   Play, 
@@ -31,6 +31,7 @@ import {
 export default function Home() {
   const [activeFaq, setActiveFaq] = useState(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({
     nom: '',
     email: '',
@@ -86,6 +87,16 @@ export default function Home() {
 
   const toggleFaq = (index) => {
     setActiveFaq(activeFaq === index ? null : index);
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  // Close mobile menu when clicking on a link
+  const handleMobileNavClick = (sectionId) => {
+    scrollToSection(sectionId);
+    setIsMobileMenuOpen(false);
   };
 
   // Regex patterns
@@ -150,41 +161,42 @@ export default function Home() {
   };
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const fieldValue = type === 'checkbox' ? checked : value;
+  const { name, value, type, checked } = e.target;
+  const fieldValue = type === 'checkbox' ? checked : value;
 
-    setFormData(prev => ({
+  setFormData(prev => ({
+    ...prev,
+    [name]: fieldValue
+  }));
+
+  // Clear error when user starts typing
+  if (errors[name]) {
+    setErrors(prev => ({
       ...prev,
-      [name]: fieldValue
+      [name]: ''
     }));
+  }
+};
 
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+const validateForm = () => {
+  const newErrors = {};
+
+  Object.keys(formData).forEach(key => {
+    const error = validateField(key, formData[key]);
+    if (error) {
+      newErrors[key] = error;
     }
-  };
+  });
 
-  const validateForm = () => {
-    const newErrors = {};
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
-    Object.keys(formData).forEach(key => {
-      const error = validateField(key, formData[key]);
-      if (error) {
-        newErrors[key] = error;
-      }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e) => {
+const handleSubmit = async (e) => {
   e.preventDefault();
   
   console.log('🔄 Début de la soumission du formulaire');
+  console.log('📝 Données du formulaire:', formData);
   
   if (!validateForm()) {
     console.log('❌ Validation du formulaire échouée');
@@ -194,10 +206,9 @@ export default function Home() {
   setIsSubmitting(true);
   
   try {
-    // URL de votre Google Apps Script
+    // 1. Envoi vers Google Apps Script (optionnel - gardé pour compatibilité)
     const scriptUrl = 'https://script.google.com/macros/s/AKfycbyV35BkjharOEU_KNEuFPNAcP8sAJ2rJcvnuU2mNJkEACqF3EMaFXNsjlVw2b69igSV/exec';
     
-    // Préparer les données
     const submissionData = {
       nom: formData.nom,
       email: formData.email,
@@ -211,40 +222,47 @@ export default function Home() {
     
     console.log('📤 Données à envoyer:', submissionData);
     
-    // IMPORTANT: Utiliser 'no-cors' pour éviter le preflight OPTIONS
-    const response = await fetch(scriptUrl, {
+    // Envoi vers Google Sheets (mode no-cors)
+    fetch(scriptUrl, {
       method: 'POST',
-      mode: 'no-cors', // ← Ceci évite le preflight CORS
+      mode: 'no-cors',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(submissionData),
+    }).then(() => {
+      console.log('✅ Données envoyées à Google Sheets');
+    }).catch(err => {
+      console.error('❌ Erreur Google Sheets:', err);
     });
 
-    // Avec 'no-cors', nous ne pouvons pas lire la réponse
-    // Mais nous pouvons vérifier si la requête a été envoyée
-    console.log('📨 Requête envoyée, statut:', response.type);
-    
-    await fetch('/api/send-email', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    to: 'abdobaq777@gmail.com', // or another recipient
-    subject: `Nouvelle inscription de ${formData.nom}`,
-    html: `
-      <h2>Nouvelle demande reçue</h2>
-      <p><strong>Nom :</strong> ${formData.nom}</p>
-      <p><strong>Email :</strong> ${formData.email}</p>
-      <p><strong>Téléphone :</strong> ${formData.telephone}</p>
-      <p><strong>Niveau :</strong> ${formData.niveau}</p>
-      <p><strong>Message :</strong><br>${formData.message}</p>
-      <p><strong>Hors heures :</strong> ${formData.horsHeures ? 'Oui' : 'Non'}</p>
-    `,
-  }),
-});
+    // 2. Envoi des emails via notre API (PRINCIPAL)
+    console.log('📨 Envoi des emails...');
+    const emailResponse = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        nom: formData.nom,
+        email: formData.email,
+        telephone: formData.telephone,
+        niveau: formData.niveau,
+        message: formData.message,
+        horsHeures: formData.horsHeures,
+        date: new Date().toISOString(),
+      }),
+    });
 
-    // Simuler un succès car nous ne pouvons pas lire la réponse en no-cors
-    // En production, vous devriez vérifier d'une autre manière
+    const emailResult = await emailResponse.json();
+
+    if (!emailResponse.ok) {
+      throw new Error(emailResult.error || 'Erreur lors de l\'envoi des emails');
+    }
+
+    console.log('✅ Emails envoyés avec succès:', emailResult);
+
+    // 3. Simuler un succès pour Google Sheets (puisque nous ne pouvons pas lire la réponse en no-cors)
     setSubmitStatus('success');
     setFormData({
       nom: '',
@@ -257,7 +275,7 @@ export default function Home() {
     });
     setErrors({});
     
-    console.log('✅ Données envoyées (mode no-cors)');
+    console.log('✅ Formulaire traité avec succès');
     
   } catch (error) {
     console.error('❌ Erreur complète:', error);
@@ -370,6 +388,16 @@ export default function Home() {
     }
   };
 
+  // Navigation items for both desktop and mobile
+  const navItems = [
+    { id: 'accueil', label: 'Accueil' },
+    { id: 'pourquoi', label: 'Pourquoi' },
+    { id: 'programme', label: 'Programme' },
+    { id: 'avantages', label: 'Avantages' },
+    { id: 'tarifs', label: 'Tarifs' },
+    { id: 'temoignages', label: 'Témoignages' }
+  ];
+
   return (
     <div className="min-h-screen bg-white">
       {/* Bandeau Session */}
@@ -382,278 +410,414 @@ export default function Home() {
         🚀 Session Novembre 2025 – Inscriptions ouvertes ! Places limitées
       </motion.div>
 
-    {/* Navigation Premium */}
-<motion.header 
-  className={`fixed top-4 w-full z-50 transition-all duration-500 ${
-    isScrolled ? 'bg-white/95 backdrop-blur-md shadow-2xl py-3 rounded-2xl mx-4' : 'bg-transparent py-4'
-  }`}
-  initial={{ y: -100 }}
-  animate={{ y: 0 }}
-  transition={{ duration: 0.6 }}
->
-  <div className="container mx-auto px-4 flex justify-between items-center">
-    {/* Enhanced Logo - Bigger and better */}
-    <motion.div 
-      className="flex items-center"
-      whileHover={{ scale: 1.05 }}
-      transition={{ type: "spring", stiffness: 400 }}
-    >
-      <div className="flex items-center space-x-3">
-        {/* Bigger Logo Image */}
-        <div className="relative">
-          <img 
-            src="/logo.png" 
-            alt=""
-            className={`transition-all duration-500 ${
-              isScrolled 
-                ? 'h-12 lg:h-14 filter-none'  // Bigger colored logo when scrolled
-                : 'h-14 lg:h-16 filter brightness-0 invert drop-shadow-lg'  // Bigger white logo when transparent
-            }`}
-          />
-        </div>
-        
-        {/* Optional Text Logo - Uncomment if needed */}
-        {/* <div className={`font-bold text-xl lg:text-2xl font-montserrat tracking-tight ${
-          isScrolled ? 'text-[#0F377A]' : 'text-white'
-        }`}>
-          Polaris<span className="text-[#F58723]">.K</span>
-        </div> */}
-      </div>
-    </motion.div>
-    
-    {/* Desktop Navigation */}
-    <nav className="hidden lg:flex space-x-8">
-      {['accueil', 'pourquoi', 'programme', 'avantages', 'tarifs', 'temoignages'].map((item) => (
-        <motion.button
-          key={item}
-          onClick={() => scrollToSection(item)}
-          className={`font-medium transition-colors relative ${
-            isScrolled ? 'text-gray-700 hover:text-[#F58723]' : 'text-white hover:text-[#F58723]'
-          }`}
-          whileHover={{ y: -2 }}
-        >
-          {item.charAt(0).toUpperCase() + item.slice(1)}
-          <motion.div
-            className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#F58723]"
-            whileHover={{ width: '100%' }}
-            transition={{ duration: 0.3 }}
-          />
-        </motion.button>
-      ))}
-    </nav>
-    
-    {/* CTA Button */}
-    <motion.button
-  onClick={() => scrollToSection('tarifs')}
-  className="bg-gradient-to-r from-[rgb(58,19,228)] to-[#e08733] text-white px-5 lg:px-6 py-2.5 lg:py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-sm"
-  whileHover={{ 
-    scale: 1.05,
-    boxShadow: "0 20px 40px rgba(58, 19, 228, 0.3)"
-  }}
-  whileTap={{ scale: 0.95 }}
->
-  <span className="flex items-center">
-    📅 S'inscrire maintenant
-  </span>
-</motion.button>
-  </div>
-</motion.header>
-      {/* Hero Section Premium */}
-<section id="accueil" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0F377A] via-[#1a4ba5] to-[#2c5fc4]">
-  <div className="absolute inset-0 bg-black/20"></div>
-  
-  {/* Animated Background Elements */}
-  <div className="absolute inset-0 overflow-hidden">
-    {[...Array(15)].map((_, i) => (
-      <motion.div
-        key={i}
-        className="absolute w-1 h-1 bg-white rounded-full"
-        initial={{ 
-          x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
-          y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
-          opacity: 0
-        }}
-        animate={{ 
-          y: [null, -100],
-          opacity: [0, 1, 0]
-        }}
-        transition={{ 
-          duration: Math.random() * 3 + 2,
-          repeat: Infinity,
-          delay: Math.random() * 2
-        }}
-      />
-    ))}
-  </div>
-
-  <div className="container mx-auto px-4 relative z-10">
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-      <motion.div
-        initial={{ opacity: 0, x: -60 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
+      {/* Navigation Premium */}
+      <motion.header 
+        className={`fixed top-4 w-full z-50 transition-all duration-500 ${
+          isScrolled ? 'bg-white/95 backdrop-blur-md shadow-2xl py-3 rounded-2xl mx-4' : 'bg-transparent py-4'
+        }`}
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.6 }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6"
-        >
-          <TrendingUp className="w-4 h-4 text-[#F58723] mr-2" />
-          <span className="text-white text-sm font-medium">🚀 Formation 100% à Distance</span>
-        </motion.div>
-
-        <motion.h1 
-          className="text-4xl lg:text-5xl font-bold text-white mb-6 font-montserrat leading-tight"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.6 }}
-        >
-          Maîtrisez la gestion moderne grâce à la 
-          <span className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] bg-clip-text text-transparent">
-            {" "}simulation d'entreprise
-          </span>
-        </motion.h1>
-
-        <motion.p 
-          className="text-xl text-white/90 mb-8 leading-relaxed"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-        >
-          Une formation certifiante <strong>100% en ligne</strong> pour maîtriser la gestion, 
-          le management et la prise de décision à distance. Développez des compétences 
-          concrètes depuis chez vous, avec un accompagnement personnalisé.
-        </motion.p>
-
-        <motion.div 
-          className="flex flex-col sm:flex-row gap-4 mb-8"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
-        >
-          <motion.button
-            onClick={() => scrollToSection('tarifs')}
-            className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-2xl hover:shadow-3xl transition-all"
-            whileHover={{ 
-              scale: 1.05,
-              boxShadow: "0 25px 50px rgba(245, 135, 35, 0.4)"
-            }}
-            whileTap={{ scale: 0.95 }}
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          {/* Enhanced Logo - Bigger and better */}
+          <motion.div 
+            className="flex items-center"
+            whileHover={{ scale: 1.05 }}
+            transition={{ type: "spring", stiffness: 400 }}
           >
-            <span className="flex items-center justify-center">
-              Je m'inscris maintenant
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </span>
-          </motion.button>
+            <div className="flex items-center space-x-3">
+              {/* Bigger Logo Image */}
+              <div className="relative">
+                <img 
+                  src="/logo.png" 
+                  alt=""
+                  className={`transition-all duration-500 ${
+                    isScrolled 
+                      ? 'h-12 lg:h-14 filter-none'  // Bigger colored logo when scrolled
+                      : 'h-14 lg:h-16 filter brightness-0 invert drop-shadow-lg'  // Bigger white logo when transparent
+                  }`}
+                />
+              </div>
+            </div>
+          </motion.div>
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex space-x-8">
+            {navItems.map((item) => (
+              <motion.button
+                key={item.id}
+                onClick={() => scrollToSection(item.id)}
+                className={`font-medium transition-colors relative ${
+                  isScrolled ? 'text-gray-700 hover:text-[#F58723]' : 'text-white hover:text-[#F58723]'
+                }`}
+                whileHover={{ y: -2 }}
+              >
+                {item.label}
+                <motion.div
+                  className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#F58723]"
+                  whileHover={{ width: '100%' }}
+                  transition={{ duration: 0.3 }}
+                />
+              </motion.button>
+            ))}
+          </nav>
 
+          {/* Mobile Menu Button */}
           <motion.button
-            onClick={() => {
-              const link = document.createElement('a');
-              link.href = 'Brochure-Formation-Polaris-K.pdf';
-              link.download = 'Brochure-Formation-Polaris-K.pdf';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            className="border-2 border-white/30 text-white px-8 py-4 rounded-2xl font-semibold backdrop-blur-sm hover:bg-white/10 transition-all"
+            className="lg:hidden p-2 rounded-lg transition-colors"
+            onClick={toggleMobileMenu}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <span className="flex items-center justify-center">
-              <Download className="mr-2 w-5 h-5" />
-              Télécharger la brochure
+            {isMobileMenuOpen ? (
+              <X className={`w-6 h-6 ${isScrolled ? 'text-gray-700' : 'text-white'}`} />
+            ) : (
+              <Menu className={`w-6 h-6 ${isScrolled ? 'text-gray-700' : 'text-white'}`} />
+            )}
+          </motion.button>
+          
+          {/* CTA Button - Hidden on mobile */}
+          <motion.button
+            onClick={() => scrollToSection('tarifs')}
+            className="hidden lg:block bg-gradient-to-r from-[rgb(58,19,228)] to-[#e08733] text-white px-5 lg:px-6 py-2.5 lg:py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-sm"
+            whileHover={{ 
+              scale: 1.05,
+              boxShadow: "0 20px 40px rgba(58, 19, 228, 0.3)"
+            }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <span className="flex items-center">
+              📅 S'inscrire maintenant
             </span>
           </motion.button>
-        </motion.div>
+        </div>
+      </motion.header>
 
-        {/* Trust Indicators */}
-        <motion.div 
-          className="flex items-center space-x-6 text-white/80"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1, duration: 0.6 }}
-        >
-          <div className="flex items-center">
-            <Shield className="w-5 h-5 mr-2 text-green-400" />
-            <span>Certification reconnue</span>
-          </div>
-          <div className="flex items-center">
-            <Users className="w-5 h-5 mr-2 text-blue-400" />
-            <span>500+ professionnels formés</span>
-          </div>
-          <div className="flex items-center">
-            <CheckCircle className="w-5 h-5 mr-2 text-[#F58723]" />
-            <span>95% de satisfaction</span>
-          </div>
-        </motion.div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, x: 60, rotateY: 10 }}
-        animate={{ opacity: 1, x: 0, rotateY: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut", delay: 0.4 }}
-        className="relative"
-      >
-        <div className="relative bg-white rounded-3xl p-8 shadow-2xl transform perspective-1000">
-          <div className="absolute -inset-4 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] rounded-3xl blur-xl opacity-30"></div>
-          <div className="relative bg-white rounded-2xl p-6 shadow-lg">
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 flex items-center justify-center">
-              {/* Conteneur vidéo format 9:16 */}
-              <div className="w-160 h-[340px] bg-black rounded-lg overflow-hidden shadow-lg">
-                <video 
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  controls
-                  poster="/video-poster.jpg" // Optionnel: image de remplacement
-                >
-                  <source src="/POLARIS.mp4" type="video/mp4" />
-                  Votre navigateur ne supporte pas la lecture de vidéos.
-                </video>
-              </div>
-            </div>
+      {/* Mobile Sidebar */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={toggleMobileMenu}
+            />
             
-            {/* Texte descriptif sous la vidéo */}
-            <div className="text-center mt-4">
-              <p className="text-gray-600 font-medium">Plateforme de formation en ligne interactive</p>
-              <p className="text-sm text-gray-500 mt-1">Zoom + LMS Polaris.K</p>
-            </div>
-          </div>
+            {/* Sidebar */}
+            <motion.div
+              className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 lg:hidden"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            >
+              <div className="flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                  <div className="flex items-center space-x-3">
+                    <img 
+                      src="/logo.png" 
+                      alt=""
+                      className="h-10"
+                    />
+                    <span className="font-bold text-xl text-[#0F377A]">
+                    <span className="text-[#F58723]"></span>
+                    </span>
+                  </div>
+                  <button
+                    onClick={toggleMobileMenu}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-6 h-6 text-gray-600" />
+                  </button>
+                </div>
+
+                {/* Navigation Items */}
+                <nav className="flex-1 p-6">
+                  <div className="space-y-4">
+                    {navItems.map((item) => (
+                      <motion.button
+                        key={item.id}
+                        onClick={() => handleMobileNavClick(item.id)}
+                        className="w-full text-left py-4 px-4 rounded-2xl text-gray-700 hover:bg-gradient-to-r hover:from-[#0F377A]/5 hover:to-[#F58723]/5 hover:text-[#0F377A] font-medium transition-all duration-300 border border-transparent hover:border-[#0F377A]/10"
+                        whileHover={{ x: 8 }}
+                        transition={{ type: 'spring', stiffness: 400 }}
+                      >
+                        <span className="flex items-center">
+                          {item.label}
+                          <ArrowRight className="ml-2 w-4 h-4" />
+                        </span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </nav>
+
+                {/* Footer CTA */}
+                <div className="p-6 border-t border-gray-200">
+                  <motion.button
+                    onClick={() => handleMobileNavClick('tarifs')}
+                    className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <span className="flex items-center justify-center">
+                      📅 S'inscrire maintenant
+                    </span>
+                  </motion.button>
+                  
+                  {/* Contact Info */}
+                  <div className="mt-6 space-y-3 text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <Phone className="w-4 h-4 mr-3 text-[#F58723]" />
+                      <span>0530 44 93 98</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Mail className="w-4 h-4 mr-3 text-[#F58723]" />
+                      <span>polarisprivateinstitute@gmail.com</span>
+                    </div>
+                  </div>
+
+                  {/* Social Links */}
+                  <div className="flex space-x-4 mt-6">
+                    {[
+                      { 
+                        name: 'Facebook', 
+                        icon: <Facebook className="w-5 h-5" />,
+                        url: 'https://facebook.com'
+                      },
+                      { 
+                        name: 'LinkedIn', 
+                        icon: <Linkedin className="w-5 h-5" />,
+                        url: 'https://linkedin.com'
+                      },
+                      { 
+                        name: 'Instagram', 
+                        icon: <Instagram className="w-5 h-5" />,
+                        url: 'https://instagram.com'
+                      }
+                    ].map((social) => (
+                      <motion.a
+                        key={social.name}
+                        href={social.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-10 h-10 bg-gray-100 hover:bg-[#F58723] text-gray-600 hover:text-white rounded-lg transition-colors flex items-center justify-center"
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        {social.icon}
+                      </motion.a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Hero Section Premium */}
+      <section id="accueil" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0F377A] via-[#1a4ba5] to-[#2c5fc4]">
+        <div className="absolute inset-0 bg-black/20"></div>
+        
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          {[...Array(15)].map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full"
+              initial={{ 
+                x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
+                y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
+                opacity: 0
+              }}
+              animate={{ 
+                y: [null, -100],
+                opacity: [0, 1, 0]
+              }}
+              transition={{ 
+                duration: Math.random() * 3 + 2,
+                repeat: Infinity,
+                delay: Math.random() * 2
+              }}
+            />
+          ))}
         </div>
 
-        {/* Floating Elements */}
-        <motion.div
-          className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-2xl z-10"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 1.2, duration: 0.6 }}
-          whileHover={{ y: -5 }}
-        >
-          <div className="flex items-center">
-            <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-            <span className="text-sm font-semibold text-gray-800">Session Nov. 2025</span>
-          </div>
-        </motion.div>
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -60 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6"
+              >
+                <TrendingUp className="w-4 h-4 text-[#F58723] mr-2" />
+                <span className="text-white text-sm font-medium">🚀 Formation 100% à Distance</span>
+              </motion.div>
 
-        <motion.div
-          className="absolute -bottom-4 -left-4 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white rounded-2xl p-4 shadow-2xl z-10"
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 1.4, duration: 0.6 }}
-          whileHover={{ y: -5 }}
-        >
-          <div className="text-center">
-            <div className="text-lg font-bold">100%</div>
-            <div className="text-xs opacity-90">À distance</div>
+              <motion.h1 
+                className="text-4xl lg:text-5xl font-bold text-white mb-6 font-montserrat leading-tight"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+              >
+                Maîtrisez la gestion moderne grâce à la 
+                <span className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] bg-clip-text text-transparent">
+                  {" "}simulation d'entreprise
+                </span>
+              </motion.h1>
+
+              <motion.p 
+                className="text-xl text-white/90 mb-8 leading-relaxed"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6, duration: 0.6 }}
+              >
+                Une formation certifiante <strong>100% en ligne</strong> pour maîtriser la gestion, 
+                le management et la prise de décision à distance. Développez des compétences 
+                concrètes depuis chez vous, avec un accompagnement personnalisé.
+              </motion.p>
+
+              <motion.div 
+                className="flex flex-col sm:flex-row gap-4 mb-8"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 0.6 }}
+              >
+                <motion.button
+                  onClick={() => scrollToSection('tarifs')}
+                  className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-2xl hover:shadow-3xl transition-all"
+                  whileHover={{ 
+                    scale: 1.05,
+                    boxShadow: "0 25px 50px rgba(245, 135, 35, 0.4)"
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="flex items-center justify-center">
+                    Je m'inscris maintenant
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </span>
+                </motion.button>
+
+                <motion.button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = 'Brochure-Formation-Polaris-K.pdf';
+                    link.download = 'Brochure-Formation-Polaris-K.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="border-2 border-white/30 text-white px-8 py-4 rounded-2xl font-semibold backdrop-blur-sm hover:bg-white/10 transition-all"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="flex items-center justify-center">
+                    <Download className="mr-2 w-5 h-5" />
+                    Télécharger la brochure
+                  </span>
+                </motion.button>
+              </motion.div>
+
+              {/* Trust Indicators */}
+              <motion.div 
+                className="flex items-center space-x-6 text-white/80"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1, duration: 0.6 }}
+              >
+                <div className="flex items-center">
+                  <Shield className="w-5 h-5 mr-2 text-green-400" />
+                  <span>Certification reconnue</span>
+                </div>
+                <div className="flex items-center">
+                  <Users className="w-5 h-5 mr-2 text-blue-400" />
+                  <span>500+ professionnels formés</span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 mr-2 text-[#F58723]" />
+                  <span>95% de satisfaction</span>
+                </div>
+              </motion.div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 60, rotateY: 10 }}
+              animate={{ opacity: 1, x: 0, rotateY: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut", delay: 0.4 }}
+              className="relative"
+            >
+              <div className="relative bg-white rounded-3xl p-8 shadow-2xl transform perspective-1000">
+                <div className="absolute -inset-4 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] rounded-3xl blur-xl opacity-30"></div>
+                <div className="relative bg-white rounded-2xl p-6 shadow-lg">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 flex items-center justify-center">
+                    {/* Conteneur vidéo format 9:16 */}
+                    <div className="w-160 h-[340px] bg-black rounded-lg overflow-hidden shadow-lg">
+                      <video 
+                        className="w-full h-full object-cover"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        controls
+                        poster="/video-poster.jpg" // Optionnel: image de remplacement
+                      >
+                        <source src="/POLARIS.mp4" type="video/mp4" />
+                        Votre navigateur ne supporte pas la lecture de vidéos.
+                      </video>
+                    </div>
+                  </div>
+                  
+                  {/* Texte descriptif sous la vidéo */}
+                  <div className="text-center mt-4">
+                    <p className="text-gray-600 font-medium">Plateforme de formation en ligne interactive</p>
+                    <p className="text-sm text-gray-500 mt-1">Zoom + LMS Polaris.K</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating Elements */}
+              <motion.div
+                className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-2xl z-10"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 1.2, duration: 0.6 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                  <span className="text-sm font-semibold text-gray-800">Session Nov. 2025</span>
+                </div>
+              </motion.div>
+
+              <motion.div
+                className="absolute -bottom-4 -left-4 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white rounded-2xl p-4 shadow-2xl z-10"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 1.4, duration: 0.6 }}
+                whileHover={{ y: -5 }}
+              >
+                <div className="text-center">
+                  <div className="text-lg font-bold">100%</div>
+                  <div className="text-xs opacity-90">À distance</div>
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
-        </motion.div>
-      </motion.div>
-    </div>
-  </div>
-</section>
+        </div>
+      </section>
+
+      {/* Rest of your existing sections remain exactly the same */}
       {/* Pourquoi Section */}
       <section id="pourquoi" className="py-20 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4">
@@ -1448,149 +1612,151 @@ export default function Home() {
           </div>
         </div>
       </section>
-{/* Footer */}
-<footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16">
-  <div className="container mx-auto px-4">
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        viewport={{ once: true }}
-      >
-        <div className="flex items-center mb-4">
-          {/* Logo Image - Replaced the PK circle */}
-          <img 
-            src="/logo.png" 
-            alt="Polaris.K - Formation à Distance d'Excellence"
-            className="h-12 lg:h-14 filter brightness-0 invert mr-3"
-          />
-          <h3 className="text-xl font-bold font-montserrat"></h3>
-        </div>
-        <p className="text-gray-400 mb-4">
-          Votre partenaire d'excellence pour la formation à distance en gestion et management au Maroc.
-        </p>
-        <div className="flex space-x-3">
-          {[
-            { 
-              name: 'Facebook', 
-              icon: (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-              ),
-              url: 'https://facebook.com'
-            },
-            { 
-              name: 'LinkedIn', 
-              icon: (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                </svg>
-              ),
-              url: 'https://linkedin.com'
-            },
-            { 
-              name: 'Instagram', 
-              icon: (
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12.017 0C8.396 0 7.986.012 6.756.06 2.702.227.228 2.698.06 6.756.012 7.986 0 8.396 0 12.017c0 3.62.012 4.03.06 5.26.168 4.058 2.642 6.532 6.7 6.7 1.23.048 1.64.06 5.26.06 3.62 0 4.03-.012 5.26-.06 4.058-.168 6.532-2.642 6.7-6.7.048-1.23.06-1.64.06-5.26 0-3.62-.012-4.03-.06-5.26-.168-4.058-2.642-6.532-6.7-6.7C16.047.012 15.637 0 12.017 0zm0 2.16c3.203 0 3.585.012 4.804.06 3.252.15 4.77 1.692 4.92 4.92.048 1.219.06 1.6.06 4.804 0 3.204-.012 3.585-.06 4.804-.15 3.227-1.668 4.77-4.92 4.92-1.219.048-1.6.06-4.804.06-3.204 0-3.585-.012-4.804-.06-3.252-.15-4.77-1.692-4.92-4.92-.048-1.219-.06-1.6-.06-4.804 0-3.204.012-3.585.06-4.804.15-3.227 1.668-4.77 4.92-4.92 1.219-.048 1.6-.06 4.804-.06zm0 3.678a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/>
-                </svg>
-              ),
-              url: 'https://instagram.com'
-            }
-          ].map((social) => (
-            <motion.a
-              key={social.name}
-              href={social.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-8 h-8 bg-gray-700 hover:bg-[#F58723] rounded-lg transition-colors flex items-center justify-center"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+
+      {/* Footer */}
+      <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
             >
-              {social.icon}
-            </motion.a>
-          ))}
-        </div>
-      </motion.div>
+              <div className="flex items-center mb-4">
+                {/* Logo Image - Replaced the PK circle */}
+                <img 
+                  src="/logo.png" 
+                  alt="Polaris.K - Formation à Distance d'Excellence"
+                  className="h-12 lg:h-14 filter brightness-0 invert mr-3"
+                />
+                <h3 className="text-xl font-bold font-montserrat"></h3>
+              </div>
+              <p className="text-gray-400 mb-4">
+                Votre partenaire d'excellence pour la formation à distance en gestion et management au Maroc.
+              </p>
+              <div className="flex space-x-3">
+                {[
+                  { 
+                    name: 'Facebook', 
+                    icon: (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                      </svg>
+                    ),
+                    url: 'https://facebook.com'
+                  },
+                  { 
+                    name: 'LinkedIn', 
+                    icon: (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                      </svg>
+                    ),
+                    url: 'https://linkedin.com'
+                  },
+                  { 
+                    name: 'Instagram', 
+                    icon: (
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12.017 0C8.396 0 7.986.012 6.756.06 2.702.227.228 2.698.06 6.756.012 7.986 0 8.396 0 12.017c0 3.62.012 4.03.06 5.26.168 4.058 2.642 6.532 6.7 6.7 1.23.048 1.64.06 5.26.06 3.62 0 4.03-.012 5.26-.06 4.058-.168 6.532-2.642 6.7-6.7.048-1.23.06-1.64.06-5.26 0-3.62-.012-4.03-.06-5.26-.168-4.058-2.642-6.532-6.7-6.7C16.047.012 15.637 0 12.017 0zm0 2.16c3.203 0 3.585.012 4.804.06 3.252.15 4.77 1.692 4.92 4.92.048 1.219.06 1.6.06 4.804 0 3.204-.012 3.585-.06 4.804-.15 3.227-1.668 4.77-4.92 4.92-1.219.048-1.6.06-4.804.06-3.204 0-3.585-.012-4.804-.06-3.252-.15-4.77-1.692-4.92-4.92-.048-1.219-.06-1.6-.06-4.804 0-3.204.012-3.585.06-4.804.15-3.227 1.668-4.77 4.92-4.92 1.219-.048 1.6-.06 4.804-.06zm0 3.678a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/>
+                      </svg>
+                    ),
+                    url: 'https://instagram.com'
+                  }
+                ].map((social) => (
+                  <motion.a
+                    key={social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 bg-gray-700 hover:bg-[#F58723] rounded-lg transition-colors flex items-center justify-center"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    {social.icon}
+                  </motion.a>
+                ))}
+              </div>
+            </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        viewport={{ once: true }}
-      >
-        <h4 className="font-bold text-lg mb-4 font-montserrat">Contact</h4>
-        <div className="space-y-3">
-          <div className="flex items-start">
-            <svg className="w-5 h-5 mr-3 mt-1 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span className="text-gray-400">Angle Rue Maâmoura & Reine Élisabeth, Kénitra</span>
-          </div>
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-3 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-            </svg>
-            <span className="text-gray-400">0530 44 93 98 / 0665 08 92 76</span>
-          </div>
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-3 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-            <a href="mailto:polarisprivateinstitute@gmail.com" className="text-gray-400 hover:text-[#F58723]">
-              polarisprivateinstitute@gmail.com
-            </a>
-          </div>
-        </div>
-      </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              viewport={{ once: true }}
+            >
+              <h4 className="font-bold text-lg mb-4 font-montserrat">Contact</h4>
+              <div className="space-y-3">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 mr-3 mt-1 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-gray-400">Angle Rue Maâmoura & Reine Élisabeth, Kénitra</span>
+                </div>
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-3 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                  <span className="text-gray-400">0530 44 93 98 / 0665 08 92 76</span>
+                </div>
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-3 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <a href="mailto:polarisprivateinstitute@gmail.com" className="text-gray-400 hover:text-[#F58723]">
+                    polarisprivateinstitute@gmail.com
+                  </a>
+                </div>
+              </div>
+            </motion.div>
 
-      {[
-        {
-          title: "Formations",
-          links: ["Gestion à Distance", "Contrôle de Gestion", "Audit Interne", "Management"]
-        },
-        {
-          title: "Ressources",
-          links: ["Brochure PDF", "FAQ", "Témoignages", "Contact"]
-        }
-      ].map((column, index) => (
-        <motion.div
-          key={column.title}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: (index + 2) * 0.1 }}
-          viewport={{ once: true }}
-        >
-          <h4 className="font-bold text-lg mb-4 font-montserrat">{column.title}</h4>
-          <ul className="space-y-2">
-            {column.links.map((link) => (
-              <li key={link}>
-                <a href="#" className="text-gray-400 hover:text-[#F58723] transition-colors">
-                  {link}
-                </a>
-              </li>
+            {[
+              {
+                title: "Formations",
+                links: ["Gestion à Distance", "Contrôle de Gestion", "Audit Interne", "Management"]
+              },
+              {
+                title: "Ressources",
+                links: ["Brochure PDF", "FAQ", "Témoignages", "Contact"]
+              }
+            ].map((column, index) => (
+              <motion.div
+                key={column.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: (index + 2) * 0.1 }}
+                viewport={{ once: true }}
+              >
+                <h4 className="font-bold text-lg mb-4 font-montserrat">{column.title}</h4>
+                <ul className="space-y-2">
+                  {column.links.map((link) => (
+                    <li key={link}>
+                      <a href="#" className="text-gray-400 hover:text-[#F58723] transition-colors">
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
             ))}
-          </ul>
-        </motion.div>
-      ))}
-    </div>
+          </div>
 
-    <motion.div
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      transition={{ duration: 0.6, delay: 0.4 }}
-      viewport={{ once: true }}
-      className="border-t border-gray-700 mt-12 pt-8 text-center"
-    >
-      <p className="text-gray-400">
-        © 2025 Institut Polaris.K. Tous droits réservés. | Formation à Distance d'Excellence
-      </p>
-    </motion.div>
-  </div>
-</footer>
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="border-t border-gray-700 mt-12 pt-8 text-center"
+          >
+            <p className="text-gray-400">
+              © 2025 Institut Polaris.K. Tous droits réservés. | Formation à Distance d'Excellence
+            </p>
+          </motion.div>
+        </div>
+      </footer>
+
       {/* Floating CTA */}
       <motion.div
         className="fixed bottom-6 right-6 z-50"
@@ -1618,16 +1784,46 @@ export default function Home() {
         transition={{ delay: 2.5, duration: 0.5 }}
       >
         <motion.button
-          onClick={openWhatsApp}
-          className="bg-green-500 text-white p-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all"
-          whileHover={{ scale: 1.1, rotate: 5 }}
-          whileTap={{ scale: 0.9 }}
-        >
-          <span className="flex items-center">
-            <MessageCircle className="w-6 h-6 mr-2" />
-            WhatsApp
-          </span>
-        </motion.button>
+  onClick={openWhatsApp}
+  className="bg-green-500 text-white p-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all relative overflow-hidden"
+  animate={{
+    scale: [1, 1.05, 1],
+    y: [0, -5, 0],
+    boxShadow: [
+      "0 20px 25px -5px rgba(0, 0, 0, 0.3)",
+      "0 25px 50px -5px rgba(34, 197, 94, 0.5)",
+      "0 20px 25px -5px rgba(0, 0, 0, 0.3)"
+    ]
+  }}
+  transition={{
+    duration: 2,
+    repeat: Infinity,
+    repeatType: "reverse",
+    ease: "easeInOut"
+  }}
+  whileHover={{ 
+    scale: 1.1, 
+    rotate: 5,
+    transition: { duration: 0.2 }
+  }}
+  whileTap={{ scale: 0.9 }}
+>
+  {/* Shine effect */}
+  <motion.div
+    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+    animate={{ x: ["-100%", "200%"] }}
+    transition={{
+      duration: 3,
+      repeat: Infinity,
+      repeatDelay: 5
+    }}
+  />
+  
+  <span className="flex items-center relative z-10">
+    <MessageCircle className="w-6 h-6 mr-2" />
+    WhatsApp
+  </span>
+</motion.button>
       </motion.div>
     </div>
   );
