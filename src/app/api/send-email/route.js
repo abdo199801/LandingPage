@@ -40,7 +40,7 @@ export async function POST(request) {
     // Vérifier la connexion SMTP
     await transporter.verify();
 
-    // Email pour l'administrateur
+    // Email pour l'administrateur - CORRIGÉ avec le message
     const adminEmail = {
       from: process.env.SMTP_USER,
       to: 'abdobaq777@gmail.com', // Remplacez par votre email
@@ -88,14 +88,25 @@ export async function POST(request) {
             </table>
           </div>
 
-          <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="color: #0F377A; margin-bottom: 10px;">📝 Message du candidat :</h4>
-            <p style="color: #333; line-height: 1.6; font-style: italic; white-space: pre-wrap;">${message}</p>
+          <!-- SECTION MESSAGE AJOUTÉE ICI -->
+          <div style="background: #f0f7ff; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #0F377A;">
+            <h3 style="color: #0F377A; margin-bottom: 15px;">📝 Message du candidat :</h3>
+            <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e1e5e9;">
+              <p style="color: #333; line-height: 1.6; margin: 0; white-space: pre-wrap; font-style: normal;">
+                ${message}
+              </p>
+            </div>
+            <p style="color: #666; font-size: 12px; margin-top: 10px; margin-bottom: 0;">
+              Longueur du message: ${message.length} caractères
+            </p>
           </div>
 
           <div style="margin-top: 25px; padding: 15px; background: #e8f5e8; border-radius: 8px;">
             <p style="margin: 0; color: #2d5016; font-weight: bold;">
               ⚡ Action requise : Contacter le candidat sous 24h
+            </p>
+            <p style="margin: 5px 0 0 0; color: #2d5016; font-size: 14px;">
+              📞 <strong>${telephone}</strong> | 📧 <a href="mailto:${email}" style="color: #0F377A;">${email}</a>
             </p>
           </div>
 
@@ -108,7 +119,7 @@ export async function POST(request) {
       `,
     };
 
-    // Email de confirmation pour l'utilisateur
+    // Email de confirmation pour l'utilisateur - CORRIGÉ avec le message
     const userEmail = {
       from: process.env.SMTP_USER,
       to: email,
@@ -147,6 +158,16 @@ export async function POST(request) {
               </ul>
             </div>
 
+            <!-- SECTION MESSAGE AJOUTÉE ICI POUR L'UTILISATEUR -->
+            <div style="background: #fff4e6; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #F58723;">
+              <h4 style="color: #F58723; margin-top: 0;">💬 Votre message :</h4>
+              <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #ffe4c4;">
+                <p style="color: #333; line-height: 1.6; margin: 0; white-space: pre-wrap;">
+                  ${message}
+                </p>
+              </div>
+            </div>
+
             <div style="background: #fff4e6; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <h4 style="color: #F58723; margin-top: 0;">🔄 Prochaines étapes :</h4>
               <ol style="color: #333; line-height: 1.6;">
@@ -163,6 +184,7 @@ export async function POST(request) {
               <div style="display: inline-block; text-align: left;">
                 <p style="margin: 5px 0;">📞 <strong>0530 44 93 98 / 0665 08 92 76</strong></p>
                 <p style="margin: 5px 0;">📧 <strong>polarisprivateinstitute@gmail.com</strong></p>
+                <p style="margin: 5px 0;">📍 <strong>Angle Rue Maâmoura & Reine Élisabeth, Kénitra</strong></p>
               </div>
             </div>
 
@@ -179,21 +201,35 @@ export async function POST(request) {
 
     // Envoi des emails
     console.log('📤 Envoi des emails...');
+    console.log('📝 Longueur du message:', message.length, 'caractères');
+    
     await transporter.sendMail(adminEmail);
-    console.log('✅ Email admin envoyé');
+    console.log('✅ Email admin envoyé à abdobaq777@gmail.com');
     
     await transporter.sendMail(userEmail);
-    console.log('✅ Email utilisateur envoyé');
+    console.log('✅ Email utilisateur envoyé à:', email);
 
     return NextResponse.json(
-      { message: 'Emails envoyés avec succès' },
+      { 
+        message: 'Emails envoyés avec succès',
+        details: {
+          adminEmail: 'abdobaq777@gmail.com',
+          userEmail: email,
+          messageLength: message.length
+        }
+      },
       { status: 200 }
     );
 
   } catch (error) {
     console.error('❌ Erreur complète:', error);
+    console.error('📝 Données reçues lors de l\'erreur:', body);
+    
     return NextResponse.json(
-      { error: `Erreur lors de l'envoi des emails: ${error.message}` },
+      { 
+        error: `Erreur lors de l'envoi des emails: ${error.message}`,
+        receivedData: body 
+      },
       { status: 500 }
     );
   }

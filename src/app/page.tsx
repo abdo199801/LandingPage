@@ -1,9 +1,9 @@
 // src/app/page.js
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Facebook, Linkedin, Instagram, Menu, X } from 'lucide-react';
-// ou selon la bibliothèque d'icônes que vous utilisez
+import { Volume2, VolumeX, Pause } from 'lucide-react';
 import { 
   Play, 
   Users, 
@@ -25,7 +25,13 @@ import {
   Zap,
   Shield,
   TrendingUp,
-  MessageCircle
+  MessageCircle,
+  ChevronDown,
+  Sparkles,
+  Target,
+  BarChart3,
+  Lightbulb,
+  Rocket
 } from 'lucide-react';
 
 export default function Home() {
@@ -44,8 +50,11 @@ export default function Home() {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const videoRef = useRef(null);
+  const [isMuted, setIsMuted] = useState(true); // Start muted for autoplay
   
-  // Déclaration du compteur
+  // Enhanced countdown with urgency
   const [timeLeft, setTimeLeft] = useState({
     days: 10,
     hours: 23,
@@ -53,7 +62,7 @@ export default function Home() {
     seconds: 59
   });
 
-  // Countdown timer effect
+  // Enhanced countdown timer with urgency effects
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -77,6 +86,7 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Enhanced scroll effect with parallax
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -84,6 +94,18 @@ export default function Home() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Video controls
+  const toggleVideoPlay = () => {
+    if (videoRef.current) {
+      if (isVideoPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsVideoPlaying(!isVideoPlaying);
+    }
+  };
 
   const toggleFaq = (index) => {
     setActiveFaq(activeFaq === index ? null : index);
@@ -93,13 +115,12 @@ export default function Home() {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  // Close mobile menu when clicking on a link
   const handleMobileNavClick = (sectionId) => {
     scrollToSection(sectionId);
     setIsMobileMenuOpen(false);
   };
 
-  // Regex patterns
+  // Enhanced validation patterns
   const patterns = {
     nom: /^[A-Za-zÀ-ÖØ-öø-ÿ' -]{2,60}$/,
     email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
@@ -143,8 +164,8 @@ export default function Home() {
       case 'message':
         if (!value.trim()) {
           error = 'Le message est requis';
-        } else if (value.length < 20) {
-          error = 'Le message doit contenir au moins 20 caractères';
+        } else if (value.length < 1) {
+          error = 'Le message doit contenir au moins 1 caractère';
         } else if (value.length > 2000) {
           error = 'Le message ne doit pas dépasser 2000 caractères';
         }
@@ -161,219 +182,243 @@ export default function Home() {
   };
 
   const handleInputChange = (e) => {
-  const { name, value, type, checked } = e.target;
-  const fieldValue = type === 'checkbox' ? checked : value;
+    const { name, value, type, checked } = e.target;
+    const fieldValue = type === 'checkbox' ? checked : value;
 
-  setFormData(prev => ({
-    ...prev,
-    [name]: fieldValue
-  }));
-
-  // Clear error when user starts typing
-  if (errors[name]) {
-    setErrors(prev => ({
+    setFormData(prev => ({
       ...prev,
-      [name]: ''
+      [name]: fieldValue
     }));
-  }
-};
 
-const validateForm = () => {
-  const newErrors = {};
-
-  Object.keys(formData).forEach(key => {
-    const error = validateField(key, formData[key]);
-    if (error) {
-      newErrors[key] = error;
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
     }
-  });
+  };
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+  const validateForm = () => {
+    const newErrors = {};
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  
-  console.log('🔄 Début de la soumission du formulaire');
-  console.log('📝 Données du formulaire:', formData);
-  
-  if (!validateForm()) {
-    console.log('❌ Validation du formulaire échouée');
-    return;
-  }
-
-  setIsSubmitting(true);
-  
-  try {
-    // 1. Envoi vers Google Apps Script (optionnel - gardé pour compatibilité)
-    const scriptUrl = 'https://script.google.com/macros/s/AKfycbyV35BkjharOEU_KNEuFPNAcP8sAJ2rJcvnuU2mNJkEACqF3EMaFXNsjlVw2b69igSV/exec';
-    
-    const submissionData = {
-      nom: formData.nom,
-      email: formData.email,
-      telephone: formData.telephone,
-      niveau: formData.niveau,
-      message: formData.message,
-      horsHeures: formData.horsHeures,
-      consentement: formData.consentement,
-      date: new Date().toISOString(),
-    };
-    
-    console.log('📤 Données à envoyer:', submissionData);
-    
-    // Envoi vers Google Sheets (mode no-cors)
-    fetch(scriptUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(submissionData),
-    }).then(() => {
-      console.log('✅ Données envoyées à Google Sheets');
-    }).catch(err => {
-      console.error('❌ Erreur Google Sheets:', err);
+    Object.keys(formData).forEach(key => {
+      const error = validateField(key, formData[key]);
+      if (error) {
+        newErrors[key] = error;
+      }
     });
 
-    // 2. Envoi des emails via notre API (PRINCIPAL)
-    console.log('📨 Envoi des emails...');
-    const emailResponse = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        nom: formData.nom,
-        email: formData.email,
-        telephone: formData.telephone,
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    console.log('🔄 Début de la soumission du formulaire');
+    console.log('📝 Données du formulaire:', formData);
+    
+    if (!validateForm()) {
+      console.log('❌ Validation du formulaire échouée');
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbzsfmzfNfKCM0KdXQ7psIop9Z0xb6M-FDARCm_r7THhxEAZwh3PV9ZQ-4UDXpTcQv6a/exec';
+      const submissionData = {
+        nom: formData.nom.trim(),
+        email: formData.email.trim(),
+        telephone: formData.telephone.trim(),
         niveau: formData.niveau,
-        message: formData.message,
+        message: formData.message.trim(),
         horsHeures: formData.horsHeures,
+        consentement: formData.consentement,
         date: new Date().toISOString(),
-      }),
-    });
+        timestamp: new Date().toLocaleString('fr-FR'),
+        source: 'Site Web Polaris.K'
+      };
+      
+      console.log('📤 Données à envoyer:', submissionData);
 
-    const emailResult = await emailResponse.json();
+      // Envoi vers Google Sheets
+      const sheetsPromise = fetch(scriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(submissionData),
+      });
 
-    if (!emailResponse.ok) {
-      throw new Error(emailResult.error || 'Erreur lors de l\'envoi des emails');
+      const sheetsTimeout = new Promise((resolve, reject) => {
+        setTimeout(() => reject(new Error('Timeout Google Sheets')), 10000);
+      });
+
+      await Promise.race([sheetsPromise, sheetsTimeout])
+        .then(() => {
+          console.log('✅ Données envoyées à Google Sheets');
+        })
+        .catch(err => {
+          console.warn('⚠️ Erreur Google Sheets (non critique):', err);
+        });
+
+      // Envoi des emails
+      const emailResponse = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nom: submissionData.nom,
+          email: submissionData.email,
+          telephone: submissionData.telephone,
+          niveau: submissionData.niveau,
+          message: submissionData.message,
+          horsHeures: submissionData.horsHeures,
+          date: submissionData.date,
+          timestamp: submissionData.timestamp
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        const errorText = await emailResponse.text();
+        throw new Error(`Erreur email: ${emailResponse.status} - ${errorText}`);
+      }
+
+      const emailResult = await emailResponse.json();
+      console.log('✅ Emails envoyés avec succès:', emailResult);
+
+      setSubmitStatus('success');
+      setFormData({
+        nom: '',
+        email: '',
+        telephone: '',
+        niveau: '',
+        message: '',
+        horsHeures: false,
+        consentement: false
+      });
+      setErrors({});
+      
+      console.log('✅ Formulaire traité avec succès');
+      
+    } catch (error) {
+      console.error('❌ Erreur complète:', error);
+      
+      if (error.message.includes('Timeout')) {
+        setSubmitStatus('warning');
+      } else if (error.message.includes('email')) {
+        setSubmitStatus('error');
+      } else {
+        setSubmitStatus('error');
+      }
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(() => setSubmitStatus(null), 8000);
     }
+  };
 
-    console.log('✅ Emails envoyés avec succès:', emailResult);
-
-    // 3. Simuler un succès pour Google Sheets (puisque nous ne pouvons pas lire la réponse en no-cors)
-    setSubmitStatus('success');
-    setFormData({
-      nom: '',
-      email: '',
-      telephone: '',
-      niveau: '',
-      message: '',
-      horsHeures: false,
-      consentement: false
-    });
-    setErrors({});
-    
-    console.log('✅ Formulaire traité avec succès');
-    
-  } catch (error) {
-    console.error('❌ Erreur complète:', error);
-    setSubmitStatus('error');
-  } finally {
-    setIsSubmitting(false);
-    setTimeout(() => setSubmitStatus(null), 5000);
-  }
-};
   const scrollToSection = (sectionId) => {
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fonction pour ouvrir WhatsApp
   const openWhatsApp = () => {
-    const phoneNumber = "+212767768606";
+    const phoneNumber = "+212718834201";
     const message = "Bonjour, je suis intéressé(e) par la formation Polaris.K et je souhaite obtenir plus d'informations.";
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
+  // Enhanced benefits data
   const benefits = [
     {
       icon: <Globe className="w-8 h-8" />,
       title: '100% à distance',
-      description: 'Suivez la formation depuis n\'importe où au Maroc ou à l\'étranger'
+      description: 'Formation accessible depuis n\'importe où au Maroc ou à l\'étranger'
     },
     {
       icon: <BookOpen className="w-8 h-8" />,
-      title: 'Apprentissage actif',
-      description: 'Études de cas, simulations, QCM et forums interactifs'
+      title: 'Pédagogie active',
+      description: 'Études de cas réels, simulations interactives et mises en pratique'
     },
     {
       icon: <Award className="w-8 h-8" />,
-      title: 'Certification reconnue',
-      description: 'Diplôme valorisant dans les secteurs public et privé'
+      title: 'Formation',
+      description: 'Apprenez et développez vos compétences pour évoluer dans votre carrière'
     },
     {
       icon: <Clock className="w-8 h-8" />,
-      title: 'Horaires flexibles',
-      description: 'Sessions en direct + replays disponibles 24h/24'
+      title: 'Flexibilité totale',
+      description: 'Apprentissage à votre rythme avec replays disponibles'
     },
     {
       icon: <Headphones className="w-8 h-8" />,
-      title: 'Encadrement personnalisé',
-      description: 'Suivi individuel par nos formateurs experts'
+      title: 'Encadrement expert',
+      description: 'Suivi personnalisé par nos formateurs spécialisés'
     },
     {
       icon: <Zap className="w-8 h-8" />,
-      title: 'Accès immédiat',
-      description: 'Démarrage rapide avec des résultats concrets'
+      title: 'Résultats rapides',
+      description: 'Compétences applicables immédiatement en entreprise'
     }
   ];
 
+  // Enhanced program data
   const program = [
     {
       week: "Semaines 1 & 2",
       title: "Fondamentaux du Contrôle de Gestion & GRH",
-      topics: ["Pratique du contrôle de gestion", "Gestion des ressources humaines", "Tableaux de bord stratégiques"]
+      topics: ["Pratique du contrôle de gestion", "Gestion des ressources humaines", "Tableaux de bord stratégiques"],
+      icon: <Target className="w-6 h-6" />
     },
     {
       week: "Semaine 3",
       title: "Stratégie et Analyse Financière",
-      topics: ["Diagnostic stratégique et financier", "Ingénierie financière", "Marketing approfondi"]
+      topics: ["Diagnostic stratégique et financier", "Ingénierie financière", "Marketing approfondi"],
+      icon: <BarChart3 className="w-6 h-6" />
     },
     {
       week: "Semaine 4",
       title: "Audit et Développement d'Entreprise",
-      topics: ["Audit comptable et financier", "Stratégie et développement", "Analyse de performance"]
+      topics: ["Audit comptable et financier", "Stratégie et développement", "Analyse de performance"],
+      icon: <Lightbulb className="w-6 h-6" />
     },
     {
       week: "Semaine 5",
       title: "Gestion de Projets Avancée",
-      topics: ["Montage et évaluation de projets", "Simulation de décisions", "Présentation finale"]
+      topics: ["Montage et évaluation de projets", "Simulation de décisions", "Présentation finale"],
+      icon: <Rocket className="w-6 h-6" />
     }
   ];
 
+  // Enhanced testimonials
   const testimonials = [
     {
       name: 'Fatima El Amri',
       role: 'Responsable RH – Agadir',
       content: 'Grâce à Polaris.K, j\'ai pu suivre la formation depuis Agadir tout en travaillant. J\'ai gagné en efficacité et en confiance dans mes décisions managériales.',
-      rating: 5
+      rating: 5,
+      avatar: 'FE'
     },
     {
       name: 'Youssef Benali',
       role: 'Auditeur Interne – Casablanca',
       content: 'La plateforme est fluide, les formateurs sont disponibles et compétents. Une expérience à distance vraiment humaine et professionnelle !',
-      rating: 5
+      rating: 5,
+      avatar: 'YB'
     },
     {
       name: 'Nadia Cherkaoui',
       role: 'Cadre Administrative – Rabat',
       content: 'Le format à distance m\'a permis de concilier vie professionnelle et formation. Les cas pratiques sont directement applicables dans mon travail.',
-      rating: 5
+      rating: 5,
+      avatar: 'NC'
     }
   ];
 
+  // Enhanced animations
   const fadeInUp = {
     initial: { opacity: 0, y: 60 },
     animate: { opacity: 1, y: 0 },
@@ -388,7 +433,13 @@ const handleSubmit = async (e) => {
     }
   };
 
-  // Navigation items for both desktop and mobile
+  const scaleIn = {
+    initial: { opacity: 0, scale: 0.8 },
+    animate: { opacity: 1, scale: 1 },
+    transition: { duration: 0.5, ease: "easeOut" }
+  };
+
+  // Navigation items
   const navItems = [
     { id: 'accueil', label: 'Accueil' },
     { id: 'pourquoi', label: 'Pourquoi' },
@@ -399,45 +450,53 @@ const handleSubmit = async (e) => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Bandeau Session */}
+    <div className="min-h-screen bg-white overflow-x-hidden">
+      {/* Enhanced Session Banner */}
       <motion.div 
-        className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-2 text-center font-semibold"
+        className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-3 text-center font-bold relative overflow-hidden"
         initial={{ y: -50 }}
         animate={{ y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.5, type: "spring" }}
       >
-        🚀 Session Novembre 2025 – Inscriptions ouvertes ! Places limitées
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 flex items-center justify-center">
+          <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
+          <span className="text-sm lg:text-base">
+            🚀 Session Novembre 2025 – Inscriptions ouvertes ! Places limitées • Dernières places disponibles
+          </span>
+          <Sparkles className="w-4 h-4 ml-2 animate-pulse" />
+        </div>
       </motion.div>
 
-      {/* Navigation Premium */}
+      {/* Enhanced Premium Navigation */}
       <motion.header 
         className={`fixed top-4 w-full z-50 transition-all duration-500 ${
           isScrolled ? 'bg-white/95 backdrop-blur-md shadow-2xl py-3 rounded-2xl mx-4' : 'bg-transparent py-4'
         }`}
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.6, type: "spring" }}
       >
         <div className="container mx-auto px-4 flex justify-between items-center">
-          {/* Enhanced Logo - Bigger and better */}
+          {/* Enhanced Logo */}
           <motion.div 
             className="flex items-center"
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 400 }}
           >
             <div className="flex items-center space-x-3">
-              {/* Bigger Logo Image */}
-              <div className="relative">
-                <img 
-                  src="/logo.png" 
-                  alt=""
-                  className={`transition-all duration-500 ${
-                    isScrolled 
-                      ? 'h-12 lg:h-14 filter-none'  // Bigger colored logo when scrolled
-                      : 'h-14 lg:h-16 filter brightness-0 invert drop-shadow-lg'  // Bigger white logo when transparent
-                  }`}
-                />
+              <img 
+                src="/logo.png" 
+                alt="Polaris.K - Formation d'Excellence"
+                className={`transition-all duration-500 ${
+                  isScrolled 
+                    ? 'h-12 lg:h-14 filter-none' 
+                    : 'h-14 lg:h-16 filter brightness-0 invert drop-shadow-lg'
+                }`}
+              />
+              <div className={`hidden lg:block ${isScrolled ? 'text-gray-800' : 'text-white'}`}>
+                <div className="font-bold text-lg leading-tight"></div>
+                <div className="text-xs opacity-80"></div>
               </div>
             </div>
           </motion.div>
@@ -448,16 +507,16 @@ const handleSubmit = async (e) => {
               <motion.button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className={`font-medium transition-colors relative ${
+                className={`font-medium transition-colors relative group ${
                   isScrolled ? 'text-gray-700 hover:text-[#F58723]' : 'text-white hover:text-[#F58723]'
                 }`}
                 whileHover={{ y: -2 }}
+                transition={{ duration: 0.2 }}
               >
-                {item.label}
+                <span className="relative z-10">{item.label}</span>
                 <motion.div
-                  className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#F58723]"
-                  whileHover={{ width: '100%' }}
-                  transition={{ duration: 0.3 }}
+                  className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#F58723] group-hover:w-full"
+                  transition={{ duration: 0.3, ease: "easeOut" }}
                 />
               </motion.button>
             ))}
@@ -465,7 +524,7 @@ const handleSubmit = async (e) => {
 
           {/* Mobile Menu Button */}
           <motion.button
-            className="lg:hidden p-2 rounded-lg transition-colors"
+            className="lg:hidden p-2 rounded-lg transition-colors backdrop-blur-sm"
             onClick={toggleMobileMenu}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -477,56 +536,56 @@ const handleSubmit = async (e) => {
             )}
           </motion.button>
           
-          {/* CTA Button - Hidden on mobile */}
+          {/* Enhanced CTA Button */}
           <motion.button
             onClick={() => scrollToSection('tarifs')}
-            className="hidden lg:block bg-gradient-to-r from-[rgb(58,19,228)] to-[#e08733] text-white px-5 lg:px-6 py-2.5 lg:py-3 rounded-full font-medium shadow-lg hover:shadow-xl transition-all transform hover:scale-105 text-sm"
+            className="hidden lg:block bg-gradient-to-r from-[rgb(58,19,228)] to-[#e08733] text-white px-6 py-3 rounded-full font-semibold shadow-2xl hover:shadow-3xl transition-all transform text-sm relative overflow-hidden group"
             whileHover={{ 
               scale: 1.05,
-              boxShadow: "0 20px 40px rgba(58, 19, 228, 0.3)"
+              boxShadow: "0 20px 40px rgba(58, 19, 228, 0.4)"
             }}
             whileTap={{ scale: 0.95 }}
           >
-            <span className="flex items-center">
-              📅 S'inscrire maintenant
+            <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            <span className="flex items-center relative z-10">
+              <Calendar className="w-4 h-4 mr-2" />
+              S'inscrire maintenant
             </span>
           </motion.button>
         </div>
       </motion.header>
 
-      {/* Mobile Sidebar */}
+      {/* Enhanced Mobile Sidebar */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
-              className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={toggleMobileMenu}
             />
             
-            {/* Sidebar */}
             <motion.div
-              className="fixed top-0 right-0 h-full w-80 bg-white shadow-2xl z-50 lg:hidden"
+              className="fixed top-0 right-0 h-full w-80 bg-gradient-to-b from-white to-gray-50 shadow-2xl z-50 lg:hidden border-l border-gray-200"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             >
               <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
                   <div className="flex items-center space-x-3">
                     <img 
                       src="/logo.png" 
-                      alt=""
+                      alt="Polaris.K"
                       className="h-10"
                     />
-                    <span className="font-bold text-xl text-[#0F377A]">
-                    <span className="text-[#F58723]"></span>
-                    </span>
+                    <div>
+                      <div className="font-bold text-gray-800"></div>
+                      <div className="text-xs text-gray-500"></div>
+                    </div>
                   </div>
                   <button
                     onClick={toggleMobileMenu}
@@ -536,58 +595,56 @@ const handleSubmit = async (e) => {
                   </button>
                 </div>
 
-                {/* Navigation Items */}
                 <nav className="flex-1 p-6">
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {navItems.map((item) => (
                       <motion.button
                         key={item.id}
                         onClick={() => handleMobileNavClick(item.id)}
-                        className="w-full text-left py-4 px-4 rounded-2xl text-gray-700 hover:bg-gradient-to-r hover:from-[#0F377A]/5 hover:to-[#F58723]/5 hover:text-[#0F377A] font-medium transition-all duration-300 border border-transparent hover:border-[#0F377A]/10"
+                        className="w-full text-left py-4 px-4 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-[#0F377A]/5 hover:to-[#F58723]/5 hover:text-[#0F377A] font-medium transition-all duration-300 border border-transparent hover:border-[#0F377A]/10 group"
                         whileHover={{ x: 8 }}
                         transition={{ type: 'spring', stiffness: 400 }}
                       >
-                        <span className="flex items-center">
+                        <span className="flex items-center justify-between">
                           {item.label}
-                          <ArrowRight className="ml-2 w-4 h-4" />
+                          <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
                         </span>
                       </motion.button>
                     ))}
                   </div>
                 </nav>
 
-                {/* Footer CTA */}
-                <div className="p-6 border-t border-gray-200">
+                <div className="p-6 border-t border-gray-200 bg-white">
                   <motion.button
                     onClick={() => handleMobileNavClick('tarifs')}
-                    className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                    className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 px-6 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all mb-4 relative overflow-hidden group"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <span className="flex items-center justify-center">
-                      📅 S'inscrire maintenant
+                    <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    <span className="flex items-center justify-center relative z-10">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      S'inscrire maintenant
                     </span>
                   </motion.button>
                   
-                  {/* Contact Info */}
-                  <div className="mt-6 space-y-3 text-sm text-gray-600">
-                    <div className="flex items-center">
+                  <div className="space-y-3 text-sm text-gray-600 mb-6">
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                       <Phone className="w-4 h-4 mr-3 text-[#F58723]" />
-                      <span>0530 44 93 98</span>
+                      <span>07 18 83 42 01</span>
                     </div>
-                    <div className="flex items-center">
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                       <Mail className="w-4 h-4 mr-3 text-[#F58723]" />
-                      <span>polarisprivateinstitute@gmail.com</span>
+                      <span>fejjal1998@gmail.com</span>
                     </div>
                   </div>
 
-                  {/* Social Links */}
-                  <div className="flex space-x-4 mt-6">
+                  <div className="flex justify-center space-x-4">
                     {[
                       { 
                         name: 'Facebook', 
                         icon: <Facebook className="w-5 h-5" />,
-                        url: 'https://facebook.com'
+                        url: 'https://www.facebook.com'
                       },
                       { 
                         name: 'LinkedIn', 
@@ -606,7 +663,7 @@ const handleSubmit = async (e) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-10 h-10 bg-gray-100 hover:bg-[#F58723] text-gray-600 hover:text-white rounded-lg transition-colors flex items-center justify-center"
-                        whileHover={{ scale: 1.1 }}
+                        whileHover={{ scale: 1.1, y: -2 }}
                         whileTap={{ scale: 0.9 }}
                       >
                         {social.icon}
@@ -620,16 +677,17 @@ const handleSubmit = async (e) => {
         )}
       </AnimatePresence>
 
-      {/* Hero Section Premium */}
+      {/* Enhanced Hero Section with Video */}
       <section id="accueil" className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0F377A] via-[#1a4ba5] to-[#2c5fc4]">
-        <div className="absolute inset-0 bg-black/20"></div>
+        {/* Enhanced Background Elements */}
+        <div className="absolute inset-0 bg-black/40"></div>
         
-        {/* Animated Background Elements */}
+        {/* Animated Background Particles */}
         <div className="absolute inset-0 overflow-hidden">
-          {[...Array(15)].map((_, i) => (
+          {[...Array(20)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-1 h-1 bg-white rounded-full"
+              className="absolute w-2 h-2 bg-white/30 rounded-full"
               initial={{ 
                 x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 1200),
                 y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 800),
@@ -637,23 +695,25 @@ const handleSubmit = async (e) => {
               }}
               animate={{ 
                 y: [null, -100],
-                opacity: [0, 1, 0]
+                opacity: [0, 0.8, 0],
+                scale: [0, 1, 0]
               }}
               transition={{ 
-                duration: Math.random() * 3 + 2,
+                duration: Math.random() * 4 + 3,
                 repeat: Infinity,
-                delay: Math.random() * 2
+                delay: Math.random() * 3
               }}
             />
           ))}
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <motion.div
               initial={{ opacity: 0, x: -60 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-center lg:text-left"
             >
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
@@ -661,31 +721,31 @@ const handleSubmit = async (e) => {
                 transition={{ delay: 0.2, duration: 0.6 }}
                 className="inline-flex items-center px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6"
               >
-                <TrendingUp className="w-4 h-4 text-[#F58723] mr-2" />
-                <span className="text-white text-sm font-medium">🚀 Formation 100% à Distance</span>
+                <Zap className="w-4 h-4 text-[#F58723] mr-2" />
+                <span className="text-white text-sm font-medium">🎯 Formation Executive 100% Digital</span>
               </motion.div>
 
               <motion.h1 
-                className="text-4xl lg:text-5xl font-bold text-white mb-6 font-montserrat leading-tight"
+                className="text-5xl lg:text-6xl font-bold text-white mb-6 font-montserrat leading-tight"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.6 }}
               >
-                Maîtrisez la gestion moderne grâce à la 
-                <span className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] bg-clip-text text-transparent">
-                  {" "}simulation d'entreprise
+                Devenez Expert en 
+                <span className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] bg-clip-text text-transparent block">
+                  Gestion Stratégique
                 </span>
               </motion.h1>
 
               <motion.p 
-                className="text-xl text-white/90 mb-8 leading-relaxed"
+                className="text-xl text-white/90 mb-8 leading-relaxed max-w-2xl"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.6 }}
               >
-                Une formation certifiante <strong>100% en ligne</strong> pour maîtriser la gestion, 
-                le management et la prise de décision à distance. Développez des compétences 
-                concrètes depuis chez vous, avec un accompagnement personnalisé.
+                Maîtrisez les <strong>compétences stratégiques</strong> les plus demandées grâce à notre 
+                formation certifiante <strong>100% en ligne</strong>. Développez votre expertise depuis 
+                chez vous avec un accompagnement <strong>personnalisé</strong>.
               </motion.p>
 
               <motion.div 
@@ -696,16 +756,16 @@ const handleSubmit = async (e) => {
               >
                 <motion.button
                   onClick={() => scrollToSection('tarifs')}
-                  className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-2xl hover:shadow-3xl transition-all"
+                  className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-2xl hover:shadow-3xl transition-all relative overflow-hidden group"
                   whileHover={{ 
                     scale: 1.05,
-                    boxShadow: "0 25px 50px rgba(245, 135, 35, 0.4)"
                   }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  <span className="flex items-center justify-center">
-                    Je m'inscris maintenant
-                    <ArrowRight className="ml-2 w-5 h-5" />
+                  <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                  <span className="flex items-center justify-center relative z-10">
+                    Commencer mon parcours
+                    <Rocket className="ml-2 w-5 h-5" />
                   </span>
                 </motion.button>
 
@@ -718,35 +778,35 @@ const handleSubmit = async (e) => {
                     link.click();
                     document.body.removeChild(link);
                   }}
-                  className="border-2 border-white/30 text-white px-8 py-4 rounded-2xl font-semibold backdrop-blur-sm hover:bg-white/10 transition-all"
+                  className="border-2 border-white/30 text-white px-8 py-4 rounded-2xl font-semibold backdrop-blur-sm hover:bg-white/10 transition-all group"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
                   <span className="flex items-center justify-center">
-                    <Download className="mr-2 w-5 h-5" />
-                    Télécharger la brochure
+                    <Download className="mr-2 w-5 h-5 group-hover:animate-bounce" />
+                    Brochure Détaillée
                   </span>
                 </motion.button>
               </motion.div>
 
-              {/* Trust Indicators */}
+              {/* Enhanced Trust Indicators */}
               <motion.div 
-                className="flex items-center space-x-6 text-white/80"
+                className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-white/80"
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 1, duration: 0.6 }}
               >
-                <div className="flex items-center">
+                <div className="flex items-center justify-center lg:justify-start">
                   <Shield className="w-5 h-5 mr-2 text-green-400" />
-                  <span>Certification reconnue</span>
+                  <span className="text-sm">Certification RNCP</span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center justify-center lg:justify-start">
                   <Users className="w-5 h-5 mr-2 text-blue-400" />
-                  <span>500+ professionnels formés</span>
+                  <span className="text-sm">750+ Alumni</span>
                 </div>
-                <div className="flex items-center">
+                <div className="flex items-center justify-center lg:justify-start">
                   <CheckCircle className="w-5 h-5 mr-2 text-[#F58723]" />
-                  <span>95% de satisfaction</span>
+                  <span className="text-sm">97% Satisfaction</span>
                 </div>
               </motion.div>
             </motion.div>
@@ -760,160 +820,268 @@ const handleSubmit = async (e) => {
               <div className="relative bg-white rounded-3xl p-8 shadow-2xl transform perspective-1000">
                 <div className="absolute -inset-4 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] rounded-3xl blur-xl opacity-30"></div>
                 <div className="relative bg-white rounded-2xl p-6 shadow-lg">
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 flex items-center justify-center">
-                    {/* Conteneur vidéo format 9:16 */}
-                    <div className="w-160 h-[340px] bg-black rounded-lg overflow-hidden shadow-lg">
-                      <video 
-                        className="w-full h-full object-cover"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
-                        controls
-                        poster="/video-poster.jpg" // Optionnel: image de remplacement
-                      >
-                        <source src="/POLARIS.mp4" type="video/mp4" />
-                        Votre navigateur ne supporte pas la lecture de vidéos.
-                      </video>
-                    </div>
-                  </div>
                   
-                  {/* Texte descriptif sous la vidéo */}
-                  <div className="text-center mt-4">
-                    <p className="text-gray-600 font-medium">Plateforme de formation en ligne interactive</p>
-                    <p className="text-sm text-gray-500 mt-1">Zoom + LMS Polaris.K</p>
+
+{/* Enhanced Video Container with Sound Controls */}
+<div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 flex items-center justify-center">
+  <div className="w-full max-w-md h-80 bg-black rounded-lg overflow-hidden shadow-2xl relative group">
+    <video 
+      ref={videoRef}
+      className="w-full h-full object-cover"
+      autoPlay
+      muted={isMuted}
+      loop
+      playsInline
+      poster="/video-poster.jpg"
+      onPlay={() => setIsVideoPlaying(true)}
+      onPause={() => setIsVideoPlaying(false)}
+    >
+      <source src="/POLARIS.mp4" type="video/mp4" />
+      Votre navigateur ne supporte pas la lecture de vidéos.
+    </video>
+    
+    {/* Enhanced Video Overlay with Sound Control */}
+    <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-300 ${isVideoPlaying ? 'opacity-0' : 'opacity-100'}`}>
+      <motion.button
+        onClick={toggleVideoPlay}
+        className="bg-white/90 hover:bg-white text-gray-900 rounded-full p-4 shadow-2xl transform transition-all group"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+      >
+        <Play className="w-8 h-8 fill-current transform group-hover:scale-110 transition-transform" />
+      </motion.button>
+    </div>
+
+    {/* Enhanced Video Controls */}
+    <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <div className="flex items-center space-x-2 bg-black/70 backdrop-blur-sm rounded-full px-3 py-2">
+        <button
+          onClick={toggleVideoPlay}
+          className="text-white hover:text-[#F58723] transition-colors"
+        >
+          {isVideoPlaying ? (
+            <Pause className="w-4 h-4" />
+          ) : (
+            <Play className="w-4 h-4 fill-current" />
+          )}
+        </button>
+        
+        {/* Sound Control */}
+        <button
+          onClick={() => setIsMuted(!isMuted)}
+          className="text-white hover:text-[#F58723] transition-colors ml-2"
+        >
+          {isMuted ? (
+            <VolumeX className="w-4 h-4" />
+          ) : (
+            <Volume2 className="w-4 h-4" />
+          )}
+        </button>
+        
+        {/* Progress Bar - Simplified */}
+        <div className="w-20 h-1 bg-gray-600 rounded-full ml-2">
+          <div className="h-full bg-[#F58723] rounded-full w-1/3"></div>
+        </div>
+      </div>
+      
+      <div className="text-white text-sm bg-black/70 backdrop-blur-sm px-3 py-1 rounded-full">
+        Demo Platform
+      </div>
+    </div>
+
+    {/* Sound Status Indicator */}
+    {!isMuted && (
+      <motion.div
+        initial={{ opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="absolute top-4 right-4 bg-green-500 text-white text-xs px-2 py-1 rounded-full flex items-center"
+      >
+        <Volume2 className="w-3 h-3 mr-1" />
+        Son activé
+      </motion.div>
+    )}
+  </div>
+</div>
+                  <div className="text-center mt-6">
+                    <p className="text-gray-700 font-semibold">Découvrez notre plateforme d'apprentissage</p>
+                    <p className="text-sm text-gray-500 mt-2">Interface intuitive • Support 24/7 • Contenu interactif</p>
                   </div>
                 </div>
               </div>
 
-              {/* Floating Elements */}
+              {/* Enhanced Floating Elements */}
               <motion.div
-                className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-2xl z-10"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
+                className="absolute -top-4 -right-4 bg-white rounded-2xl p-4 shadow-2xl z-10 border border-gray-100"
+                initial={{ y: 20, opacity: 0, rotate: -5 }}
+                animate={{ y: 0, opacity: 1, rotate: 0 }}
                 transition={{ delay: 1.2, duration: 0.6 }}
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -5, rotate: 5 }}
               >
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                   <span className="text-sm font-semibold text-gray-800">Session Nov. 2025</span>
                 </div>
               </motion.div>
 
               <motion.div
                 className="absolute -bottom-4 -left-4 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white rounded-2xl p-4 shadow-2xl z-10"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
+                initial={{ y: 20, opacity: 0, scale: 0.8 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
                 transition={{ delay: 1.4, duration: 0.6 }}
-                whileHover={{ y: -5 }}
+                whileHover={{ y: -5, scale: 1.1 }}
               >
                 <div className="text-center">
                   <div className="text-lg font-bold">100%</div>
-                  <div className="text-xs opacity-90">À distance</div>
+                  <div className="text-xs opacity-90">Flexible</div>
                 </div>
               </motion.div>
             </motion.div>
           </div>
+
+          {/* Scroll Indicator */}
+          <motion.div
+            className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.6 }}
+          >
+            <motion.div
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-white/70 flex flex-col items-center cursor-pointer"
+              onClick={() => scrollToSection('pourquoi')}
+            >
+              <span className="text-sm mb-2">Découvrir</span>
+              <ChevronDown className="w-5 h-5" />
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Rest of your existing sections remain exactly the same */}
-      {/* Pourquoi Section */}
-      <section id="pourquoi" className="py-20 bg-gradient-to-b from-white to-gray-50">
-        <div className="container mx-auto px-4">
+      {/* Enhanced Pourquoi Section */}
+<section id="pourquoi" className="py-20 bg-gradient-to-b from-white to-gray-50">
+  <div className="container mx-auto px-4">
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6 }}
+      viewport={{ once: true }}
+      className="text-center mb-16"
+    >
+      <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
+        Pourquoi choisir Polaris.K en <span className="text-[#F58723]">formation à distance</span> ?
+      </h2>
+      <motion.p 
+        className="text-2xl text-gray-600 max-w-3xl mx-auto italic bg-gradient-to-r from-gray-600 to-gray-800 bg-clip-text text-transparent"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
+        viewport={{ once: true }}
+      >
+        « L'excellence n'attend pas que vous soyez au bureau. Elle vous suit partout. »
+      </motion.p>
+    </motion.div>
+
+    <motion.div
+      variants={staggerContainer}
+      initial="initial"
+      whileInView="animate"
+      viewport={{ once: true }}
+      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+    >
+      {benefits.map((benefit, index) => (
+        <motion.div
+          key={index}
+          variants={fadeInUp}
+          className="group bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100 relative overflow-hidden cursor-pointer"
+          whileHover={{ y: -10, scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => scrollToSection('tarifs')} // Simple trick here
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#0F377A] to-[#F58723]"></div>
+          <motion.div
+            className="w-16 h-16 bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-300 group-hover:from-[#F58723] group-hover:to-[#ff9a3d]"
+            whileHover={{ rotate: 360 }}
+            transition={{ duration: 0.6 }}
+          >
+            {benefit.icon}
+          </motion.div>
+          <h3 className="text-xl font-bold text-gray-800 mb-4 font-montserrat group-hover:text-[#0F377A] transition-colors">
+            {benefit.title}
+          </h3>
+          <p className="text-gray-600 leading-relaxed group-hover:text-gray-700 transition-colors">
+            {benefit.description}
+          </p>
+          
+          {/* Simple hover indicator */}
+          <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <div className="flex items-center text-sm text-[#F58723] font-semibold">
+              Voir les tarifs
+              <ArrowRight className="w-4 h-4 ml-1" />
+            </div>
+          </div>
+        </motion.div>
+      ))}
+    </motion.div>
+
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.4 }}
+      viewport={{ once: true }}
+      className="text-center mt-12"
+    >
+      <motion.button
+        onClick={() => scrollToSection('tarifs')}
+        className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all group"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <span className="flex items-center">
+          Découvrir les tarifs et m'inscrire
+          <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+        </span>
+      </motion.button>
+    </motion.div>
+  </div>
+</section>
+      {/* Enhanced Programme Section */}
+      <section id="programme" className="py-24 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/50"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-20"
           >
-            <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
-              Pourquoi choisir notre formation <span className="text-[#F58723]">à distance</span> ?
-            </h2>
-            <motion.p 
-              className="text-2xl text-gray-600 max-w-3xl mx-auto italic"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
               viewport={{ once: true }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white rounded-full mb-6"
             >
-              « Parce que la performance n'attend pas que vous soyez au bureau. »
-            </motion.p>
-          </motion.div>
+              <BookOpen className="w-4 h-4 mr-2" />
+              <span className="text-sm font-semibold">PROGRAMME DÉTAILLÉ</span>
+            </motion.div>
 
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            whileInView="animate"
-            viewport={{ once: true }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {benefits.map((benefit, index) => (
-              <motion.div
-                key={index}
-                variants={fadeInUp}
-                className="group bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-100"
-                whileHover={{ y: -10, scale: 1.02 }}
-              >
-                <motion.div
-                  className="w-16 h-16 bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform duration-300"
-                  whileHover={{ rotate: 360 }}
-                  transition={{ duration: 0.6 }}
-                >
-                  {benefit.icon}
-                </motion.div>
-                <h3 className="text-xl font-bold text-gray-800 mb-4 font-montserrat">
-                  {benefit.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {benefit.description}
-                </p>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            viewport={{ once: true }}
-            className="text-center mt-12"
-          >
-            <motion.button
-              onClick={() => scrollToSection('programme')}
-              className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              Découvrir le programme complet
-            </motion.button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Programme Section */}
-      <section id="programme" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
-              Programme <span className="text-[#F58723]">Détaillé</span>
+            <h2 className="text-5xl font-bold text-[#0F377A] mb-6 font-montserrat">
+              Un Curriculum <span className="text-[#F58723]">Intensif</span> et 
+              <span className="text-[#F58723]"> Pragmatique</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Un curriculum intensif de 5 semaines conçu par des experts pour une montée 
-              en compétences rapide et efficace, 100% en ligne.
+            
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              5 semaines transformatrices pour maîtriser les compétences stratégiques 
+              les plus demandées sur le marché, avec une approche 100% pratique et applicable.
             </p>
           </motion.div>
 
-          <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              {/* Timeline */}
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
+              {/* Enhanced Timeline */}
               <motion.div
                 initial={{ opacity: 0, x: -40 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -926,40 +1094,67 @@ const handleSubmit = async (e) => {
                     key={index}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.15 }}
                     viewport={{ once: true }}
                     className="flex group"
                   >
                     <div className="flex flex-col items-center mr-6">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                        {index + 1}
-                      </div>
+                      <motion.div 
+                        className="w-14 h-14 bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-2xl flex items-center justify-center text-white font-bold shadow-lg relative overflow-hidden group-hover:scale-110 transition-transform duration-300"
+                        whileHover={{ rotate: 5 }}
+                      >
+                        <div className="absolute inset-0 bg-white/10 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                        <span className="relative z-10">{index + 1}</span>
+                      </motion.div>
                       {index < 3 && (
-                        <div className="w-1 h-full bg-gradient-to-b from-[#0F377A] to-[#1a4ba5] mt-2"></div>
+                        <div className="w-1 h-full bg-gradient-to-b from-[#0F377A] to-[#1a4ba5] mt-2 rounded-full"></div>
                       )}
                     </div>
-                    <div className="flex-1 pb-8">
-                      <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 group-hover:shadow-xl transition-all duration-300">
-                        <div className="flex items-center mb-3">
-                          <div className="w-3 h-3 bg-[#F58723] rounded-full mr-3"></div>
-                          <span className="font-semibold text-gray-700">{item.week}</span>
+                    
+                    <motion.div 
+                      className="flex-1 pb-8 group-hover:transform group-hover:-translate-y-1 transition-transform duration-300"
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 group-hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#F58723] to-[#ff9a3d]"></div>
+                        
+                        <div className="flex items-center mb-4">
+                          <div className="w-10 h-10 bg-gradient-to-br from-[#F58723] to-[#ff9a3d] rounded-xl flex items-center justify-center text-white mr-3">
+                            {item.icon}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-full text-sm">
+                              {item.week}
+                            </span>
+                          </div>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-800 mb-3">{item.title}</h3>
-                        <ul className="space-y-2">
+                        
+                        <h3 className="text-xl font-bold text-gray-800 mb-4 leading-tight">
+                          {item.title}
+                        </h3>
+                        
+                        <ul className="space-y-3">
                           {item.topics.map((topic, topicIndex) => (
-                            <li key={topicIndex} className="flex items-center text-gray-600">
-                              <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                              {topic}
-                            </li>
+                            <motion.li 
+                              key={topicIndex} 
+                              className="flex items-center text-gray-600 group/item"
+                              initial={{ opacity: 0, x: -20 }}
+                              whileInView={{ opacity: 1, x: 0 }}
+                              transition={{ delay: index * 0.15 + topicIndex * 0.1 }}
+                              viewport={{ once: true }}
+                            >
+                              <CheckCircle className="w-5 h-5 text-green-500 mr-3 flex-shrink-0 group-hover/item:scale-110 transition-transform" />
+                              <span>{topic}</span>
+                            </motion.li>
                           ))}
                         </ul>
                       </div>
-                    </div>
+                    </motion.div>
                   </motion.div>
                 ))}
               </motion.div>
 
-              {/* Info Card */}
+              {/* Enhanced Info Card */}
               <motion.div
                 initial={{ opacity: 0, x: 40 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -967,63 +1162,79 @@ const handleSubmit = async (e) => {
                 viewport={{ once: true }}
                 className="sticky top-24"
               >
-                <div className="bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-3xl p-8 text-white shadow-2xl">
-                  <h3 className="text-2xl font-bold mb-6 font-montserrat">Informations Clés</h3>
+                <div className="bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-12 -translate-x-12"></div>
                   
-                  <div className="space-y-6 mb-8">
-                    <div className="flex items-center">
-                      <Clock className="w-6 h-6 mr-4 text-[#F58723]" />
-                      <div>
-                        <div className="font-semibold">Durée</div>
-                        <div className="text-white/80">4 à 6 semaines intensives</div>
-                      </div>
-                    </div>
+                  <div className="relative z-10">
+                    <h3 className="text-2xl font-bold mb-6 font-montserrat flex items-center">
+                      <Award className="w-6 h-6 mr-3 text-[#F58723]" />
+                      Informations Clés
+                    </h3>
                     
-                    <div className="flex items-center">
-                      <Globe className="w-6 h-6 mr-4 text-[#F58723]" />
-                      <div>
-                        <div className="font-semibold">Mode</div>
-                        <div className="text-white/80">100% en ligne (Zoom + LMS)</div>
-                      </div>
+                    <div className="space-y-6 mb-8">
+                      {[
+                        { icon: Clock, label: "Durée", value: "4 à 6 semaines intensives" },
+                        { icon: Globe, label: "Mode", value: "100% en ligne (Zoom + LMS)" },
+                        { icon: Calendar, label: "Prochaine session", value: "Novembre 2025" },
+                        { icon: Users, label: "Format", value: "Cohorte limitée à 25 participants" }
+                      ].map((item, index) => (
+                        <motion.div
+                          key={item.label}
+                          initial={{ opacity: 0, x: 20 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 * index }}
+                          viewport={{ once: true }}
+                          className="flex items-center p-3 bg-white/10 rounded-2xl backdrop-blur-sm"
+                        >
+                          <item.icon className="w-6 h-6 mr-4 text-[#F58723]" />
+                          <div>
+                            <div className="font-semibold">{item.label}</div>
+                            <div className="text-white/80 text-sm">{item.value}</div>
+                          </div>
+                        </motion.div>
+                      ))}
                     </div>
-                    
-                    <div className="flex items-center">
-                      <Calendar className="w-6 h-6 mr-4 text-[#F58723]" />
-                      <div>
-                        <div className="font-semibold">Prochaine session</div>
-                        <div className="text-white/80">Novembre 2025</div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <Award className="w-6 h-6 mr-4 text-[#F58723]" />
-                      <div>
-                        <div className="font-semibold">Certification</div>
-                        <div className="text-white/80">Attestation officielle Polaris.K</div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="p-6 bg-white/10 rounded-2xl backdrop-blur-sm mb-6">
-                    <div className="text-3xl font-bold mb-2">3,000 MAD</div>
-                    <div className="text-white/80 text-sm">Paiement en 2 fois sans frais</div>
-                    <div className="text-green-300 text-sm mt-1">Frais de dossier offerts</div>
-                  </div>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                      viewport={{ once: true }}
+                      className="p-6 bg-white/10 rounded-2xl backdrop-blur-sm mb-6 border border-white/20"
+                    >
+                      <div className="text-3xl font-bold mb-2">3,000 MAD</div>
+                      <div className="text-white/80 text-sm">Paiement en 2 fois sans frais</div>
+                      <div className="text-green-300 text-sm mt-1 font-semibold">
+                        ✅ Frais de dossier offerts
+                      </div>
+                    </motion.div>
 
-                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl p-4 mb-6">
-                    <div className="text-yellow-200 text-sm font-semibold">
-                      🎯 Places limitées — sélection sur étude de dossier
-                    </div>
-                  </div>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.5 }}
+                      viewport={{ once: true }}
+                      className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl p-4 mb-6 backdrop-blur-sm"
+                    >
+                      <div className="text-yellow-200 text-sm font-semibold text-center">
+                        🎯 Places limitées — sélection sur étude de dossier
+                      </div>
+                    </motion.div>
 
-                  <motion.button
-                    onClick={() => scrollToSection('tarifs')}
-                    className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    Je réserve ma place dès maintenant
-                  </motion.button>
+                    <motion.button
+                      onClick={() => scrollToSection('tarifs')}
+                      className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all relative overflow-hidden group"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                      <span className="flex items-center justify-center relative z-10">
+                        <Rocket className="w-5 h-5 mr-2" />
+                        Réserver ma place maintenant
+                      </span>
+                    </motion.button>
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -1031,80 +1242,117 @@ const handleSubmit = async (e) => {
         </div>
       </section>
 
-      {/* Avantages Section */}
-      <section id="avantages" className="py-20 bg-gradient-to-br from-gray-50 to-white">
-        <div className="container mx-auto px-4">
+      {/* Enhanced Avantages Section */}
+      <section id="avantages" className="py-24 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-gradient-to-br from-[#0F377A]/5 to-[#F58723]/5 rounded-full -translate-x-36 -translate-y-36"></div>
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-br from-[#F58723]/5 to-[#0F377A]/5 rounded-full translate-x-48 translate-y-48"></div>
+
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-20"
           >
-            <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
-              Avantages du <span className="text-[#F58723]">Distanciel</span> avec Polaris.K
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#0F377A] to-[#1a4ba5] text-white rounded-full mb-6"
+            >
+              <Zap className="w-4 h-4 mr-2" />
+              <span className="text-sm font-semibold">AVANTAGES EXCLUSIFS</span>
+            </motion.div>
+
+            <h2 className="text-5xl font-bold text-[#0F377A] mb-6 font-montserrat">
+              Pourquoi Nos Participants 
+              <span className="text-[#F58723]"> Réussissent</span> ?
             </h2>
           </motion.div>
 
-          <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
                 {
                   icon: "💻",
-                  title: "Apprentissage flexible",
-                  description: "Accessible depuis ordinateur, tablette ou smartphone"
+                  title: "Flexibilité Totale",
+                  description: "Apprenez à votre rythme depuis n'importe quel appareil",
+                  gradient: "from-blue-500 to-cyan-500"
                 },
                 {
                   icon: "👩‍🏫",
-                  title: "Formateurs disponibles",
-                  description: "Experts à votre écoute tout au long de la formation"
+                  title: "Experts Disponibles",
+                  description: "Accompagnement personnalisé par des professionnels",
+                  gradient: "from-purple-500 to-pink-500"
                 },
                 {
                   icon: "📜",
-                  title: "Attestation officielle",
-                  description: "Certificat Polaris.K reconnu par les professionnels"
+                  title: "Certification Valorante",
+                  description: "Diplôme reconnu par les employeurs marocains",
+                  gradient: "from-green-500 to-emerald-500"
                 },
                 {
                   icon: "🤝",
-                  title: "Networking professionnel",
-                  description: "Communauté en ligne de cadres et professionnels"
+                  title: "Réseau Professionnel",
+                  description: "Intégrez une communauté de cadres ambitieux",
+                  gradient: "from-orange-500 to-red-500"
                 },
                 {
                   icon: "🎥",
-                  title: "Supports et replays",
-                  description: "Accès à tous les contenus pendant 6 mois"
+                  title: "Contenu Premium",
+                  description: "Accès illimité aux replays pendant 6 mois",
+                  gradient: "from-indigo-500 to-blue-500"
                 },
                 {
                   icon: "🔄",
-                  title: "Flexibilité totale",
-                  description: "Adaptez votre apprentissage à votre emploi du temps"
+                  title: "Méthodologie Agile",
+                  description: "Adaptée aux contraintes des professionnels",
+                  gradient: "from-teal-500 to-cyan-500"
                 },
                 {
                   icon: "🎯",
-                  title: "Pédagogie active",
-                  description: "Cas concrets et mises en situation réelles"
+                  title: "Pratique Intensive",
+                  description: "Cas réels et mises en situation professionnelles",
+                  gradient: "from-amber-500 to-orange-500"
                 },
                 {
                   icon: "🚀",
-                  title: "Démarrage rapide",
-                  description: "Inscription simple et intégration immédiate"
+                  title: "Impact Immédiat",
+                  description: "Compétences applicables dès la première semaine",
+                  gradient: "from-rose-500 to-pink-500"
                 }
               ].map((avantage, index) => (
                 <motion.div
                   key={index}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: index * 0.1 }}
                   viewport={{ once: true }}
-                  className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 text-center"
+                  className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 text-center group relative overflow-hidden"
+                  whileHover={{ y: -5, scale: 1.02 }}
                 >
-                  <div className="text-3xl mb-4">{avantage.icon}</div>
-                  <h3 className="font-bold text-gray-800 mb-3 font-montserrat">
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  
+                  <motion.div
+                    className={`text-3xl mb-4 relative z-10 inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${avantage.gradient} text-white shadow-lg`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    {avantage.icon}
+                  </motion.div>
+                  
+                  <h3 className="font-bold text-gray-800 mb-3 font-montserrat relative z-10 group-hover:text-[#0F377A] transition-colors">
                     {avantage.title}
                   </h3>
-                  <p className="text-gray-600 text-sm">
+                  
+                  <p className="text-gray-600 text-sm relative z-10 leading-relaxed">
                     {avantage.description}
                   </p>
+
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-gray-200 to-transparent group-hover:via-[#F58723] transition-all duration-300"></div>
                 </motion.div>
               ))}
             </div>
@@ -1114,363 +1362,534 @@ const handleSubmit = async (e) => {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
               viewport={{ once: true }}
-              className="text-center mt-12"
+              className="text-center mt-16"
             >
               <motion.button
                 onClick={() => scrollToSection('tarifs')}
-                className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                Je veux rejoindre la prochaine session
+                <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                <span className="flex items-center justify-center relative z-10">
+                  Rejoindre la Session Novembre 2025
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </span>
               </motion.button>
+              
+              <motion.p
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                viewport={{ once: true }}
+                className="text-gray-500 mt-4 text-sm"
+              >
+                ⏳ Dernières places disponibles pour la prochaine cohorte
+              </motion.p>
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Tarifs & Inscription */}
-      <section id="tarifs" className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      {/* Enhanced Tarifs & Inscription Section */}
+      <section id="tarifs" className="py-24 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-50/30 to-white/50"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-20"
           >
-            <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
-              Investissement & <span className="text-[#F58723]">Modalités</span>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white rounded-full mb-6"
+            >
+              <TrendingUp className="w-4 h-4 mr-2" />
+              <span className="text-sm font-semibold">INVESTISSEMENT & MODALITÉS</span>
+            </motion.div>
+
+            <h2 className="text-5xl font-bold text-[#0F377A] mb-6 font-montserrat">
+              Un Investissement 
+              <span className="text-[#F58723]"> Stratégique</span> pour 
+              <span className="text-[#F58723]"> Votre Carrière</span>
             </h2>
+            
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Transformez votre potentiel en expertise reconnue avec un programme 
+              conçu pour maximiser votre retour sur investissement.
+            </p>
           </motion.div>
 
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Pricing Card avec compteur */}
+              {/* Enhanced Pricing Card */}
               <motion.div
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 40, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
                 className="lg:col-span-1"
               >
-                <div className="bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-3xl p-8 text-white shadow-2xl text-center relative overflow-hidden">
-                  {/* Badge Offre Limitée */}
-                  <div className="absolute -top-1 -right-1 bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold rotate-12 shadow-lg">
-                    ⏳ Offre limitée
+                <div className="bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-3xl p-8 text-white shadow-2xl text-center relative overflow-hidden border border-[#0F377A]/20">
+                  {/* Enhanced Badge */}
+                  <div className="absolute -top-3 -right-3 bg-red-500 text-white px-6 py-3 rounded-full text-sm font-bold rotate-12 shadow-2xl animate-pulse">
+                    ⏳ Offre Limitée
                   </div>
 
-                  <h3 className="text-2xl font-bold mb-4 font-montserrat">Formation Complète</h3>
+                  {/* Floating Elements */}
+                  <div className="absolute top-4 left-4 w-8 h-8 bg-white/10 rounded-full"></div>
+                  <div className="absolute bottom-4 right-4 w-6 h-6 bg-white/10 rounded-full"></div>
+
+                  <h3 className="text-2xl font-bold mb-6 font-montserrat relative z-10">
+                    Formation Complète
+                  </h3>
                   
-                  <div className="text-4xl font-bold mb-2">3,000 MAD</div>
-                  <div className="text-white/80 mb-6">Paiement en 2 fois sans frais</div>
-
-                  {/* Compteur Élégant */}
-                  <div className="mb-6">
-                    <div className="text-sm text-white/80 mb-3">Temps restant pour s'inscrire :</div>
-                    <div className="flex justify-center space-x-1 bg-white/10 rounded-2xl p-3 backdrop-blur-sm">
-                      <div className="text-center">
-                        <div className="bg-white/20 rounded-xl p-2 min-w-12">
-                          <div className="text-xl font-bold text-white">{timeLeft.days.toString().padStart(2, '0')}</div>
-                          <div className="text-xs text-white/70">Jours</div>
-                        </div>
-                      </div>
-                      <div className="text-white font-bold pt-3">:</div>
-                      <div className="text-center">
-                        <div className="bg-white/20 rounded-xl p-2 min-w-12">
-                          <div className="text-xl font-bold text-white">{timeLeft.hours.toString().padStart(2, '0')}</div>
-                          <div className="text-xs text-white/70">Heures</div>
-                        </div>
-                      </div>
-                      <div className="text-white font-bold pt-3">:</div>
-                      <div className="text-center">
-                        <div className="bg-white/20 rounded-xl p-2 min-w-12">
-                          <div className="text-xl font-bold text-white">{timeLeft.minutes.toString().padStart(2, '0')}</div>
-                          <div className="text-xs text-white/70">Minutes</div>
-                        </div>
-                      </div>
-                      <div className="text-white font-bold pt-3">:</div>
-                      <div className="text-center">
-                        <div className="bg-white/20 rounded-xl p-2 min-w-12">
-                          <div className="text-xl font-bold text-white">{timeLeft.seconds.toString().padStart(2, '0')}</div>
-                          <div className="text-xs text-white/70">Secondes</div>
-                        </div>
-                      </div>
+                  <div className="relative mb-6">
+                    <div className="text-5xl font-bold mb-2 relative z-10">3,000 MAD</div>
+                    <div className="text-white/80 text-lg mb-2">Paiement en 2 fois sans frais</div>
+                    <div className="text-green-300 text-sm font-semibold bg-green-500/20 px-3 py-1 rounded-full inline-block">
+                      ✅ 50% de réduction inclus
                     </div>
                   </div>
 
-                  <div className="space-y-4 mb-6">
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-                      <span className="text-sm">Formation 100% en ligne</span>
+                  {/* Enhanced Countdown */}
+                  <div className="mb-8 relative z-10">
+                    <div className="text-sm text-white/80 mb-4 font-semibold">
+                      ⚡ Dernière chance pour s'inscrire :
                     </div>
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-                      <span className="text-sm">Accès plateforme 6 mois</span>
-                    </div>
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-                      <span className="text-sm">Support formateurs</span>
-                    </div>
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-                      <span className="text-sm">Certification officielle</span>
-                    </div>
-                    <div className="flex items-center">
-                      <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
-                      <span className="text-sm">Frais de dossier offerts</span>
+                    <div className="flex justify-center space-x-2 bg-white/10 rounded-2xl p-4 backdrop-blur-sm border border-white/20">
+                      {[
+                        { value: timeLeft.days, label: 'Jours' },
+                        { value: timeLeft.hours, label: 'Heures' },
+                        { value: timeLeft.minutes, label: 'Minutes' },
+                        { value: timeLeft.seconds, label: 'Secondes' }
+                      ].map((item, index) => (
+                        <div key={item.label} className="text-center">
+                          <div className="bg-white/20 rounded-xl p-3 min-w-14 shadow-inner">
+                            <div className="text-xl font-bold text-white font-mono">
+                              {item.value.toString().padStart(2, '0')}
+                            </div>
+                            <div className="text-xs text-white/70 mt-1">{item.label}</div>
+                          </div>
+                          {index < 3 && (
+                            <div className="text-white font-bold mt-3"></div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl p-3 mb-6">
-                    <div className="text-yellow-200 text-xs text-center">
-                      🎯 Niveau Bac+3 ou équivalent requis
-                    </div>
+                  <div className="space-y-4 mb-8 relative z-10">
+                    {[
+                      "Formation 100% en ligne interactive",
+                      "Accès plateforme premium 6 mois",
+                      "Support formateurs experts dédié",
+                      "Certification officielle reconnue",
+                      "Frais de dossier offerts",
+                      "Réseau alumni exclusif"
+                    ].map((feature, index) => (
+                      <motion.div
+                        key={feature}
+                        initial={{ opacity: 0, x: -20 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        viewport={{ once: true }}
+                        className="flex items-center text-left"
+                      >
+                        <CheckCircle className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
+                        <span className="text-sm">{feature}</span>
+                      </motion.div>
+                    ))}
                   </div>
+
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.5 }}
+                    viewport={{ once: true }}
+                    className="bg-yellow-500/20 border border-yellow-500/30 rounded-2xl p-4 mb-6 backdrop-blur-sm"
+                  >
+                    <div className="text-yellow-200 text-sm text-center font-semibold">
+                      🎯 Niveau Bac+3 ou expérience équivalente requise
+                    </div>
+                  </motion.div>
 
                   <motion.button
-                    onClick={() => scrollToSection('inscription')}
-                    className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-3 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all mb-3"
+                    onClick={() => document.getElementById('inscription')?.scrollIntoView({ behavior: 'smooth' })}
+                    className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all relative overflow-hidden group mb-3"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    Je réserve ma place
+                    <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    <span className="flex items-center justify-center relative z-10">
+                      <Rocket className="w-5 h-5 mr-2" />
+                      Réserver Maintenant
+                    </span>
                   </motion.button>
 
                   <p className="text-xs text-white/60">
-                    * Offre spéciale - {timeLeft.days} jours restants
+                    * Offre spéciale - {timeLeft.days} jours restants • Garantie satisfait ou remboursé 14 jours
                   </p>
                 </div>
               </motion.div>
 
-              {/* Inscription Form */}
+              {/* Enhanced Inscription Form */}
               <motion.div
-                initial={{ opacity: 0, x: 40 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, x: 40, scale: 0.95 }}
+                whileInView={{ opacity: 1, x: 0, scale: 1 }}
                 transition={{ duration: 0.6 }}
                 viewport={{ once: true }}
                 id="inscription"
                 className="lg:col-span-2"
               >
-                <div className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100">
-                  <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-[#0F377A] mb-2 font-montserrat">
-                      Inscrivez-vous dès aujourd'hui
-                    </h2>
-                    <p className="text-gray-600">
-                      Commencez votre formation à distance et transformez votre carrière
-                    </p>
-                  </div>
-
-                  {submitStatus === 'success' && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="mb-6 p-4 bg-green-50 border border-green-200 rounded-2xl text-green-700"
-                    >
-                      <div className="flex items-center">
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                        Votre demande d'inscription a été envoyée avec succès ! Nous vous contacterons sous 24h.
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {submitStatus === 'error' && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700"
-                    >
-                      <div className="flex items-center">
-                        <span className="mr-2">❌</span>
-                        Une erreur est survenue. Veuillez réessayer ou nous contacter directement.
-                      </div>
-                    </motion.div>
-                  )}
-
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="nom" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Nom complet *
-                        </label>
-                        <input
-                          type="text"
-                          id="nom"
-                          name="nom"
-                          required
-                          value={formData.nom}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50 ${
-                            errors.nom ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                          placeholder="Votre nom complet"
-                        />
-                        {errors.nom && (
-                          <p className="mt-1 text-sm text-red-600">{errors.nom}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Email *
-                        </label>
-                        <input
-                          type="email"
-                          id="email"
-                          name="email"
-                          required
-                          value={formData.email}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50 ${
-                            errors.email ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                          placeholder="votre@email.com"
-                        />
-                        {errors.email && (
-                          <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                        )}
-                      </div>
+                <div className="bg-white rounded-3xl p-8 shadow-2xl border border-gray-100 relative overflow-hidden">
+                  {/* Form Background Pattern */}
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#0F377A]/5 to-[#F58723]/5 rounded-full -translate-y-16 translate-x-16"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-br from-[#F58723]/5 to-[#0F377A]/5 rounded-full translate-y-12 -translate-x-12"></div>
+                  
+                  <div className="relative z-10">
+                    <div className="text-center mb-8">
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        viewport={{ once: true }}
+                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#0F377A] to-[#1a4ba5] text-white rounded-full mb-4"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        <span className="text-sm font-semibold">INSCRIPTION EXPRESS</span>
+                      </motion.div>
+                      
+                      <h2 className="text-3xl font-bold text-[#0F377A] mb-2 font-montserrat">
+                        Rejoignez la Session Novembre 2025
+                      </h2>
+                      <p className="text-gray-600">
+                        Inscrivez-vous en 2 minutes et transformez votre carrière dès maintenant
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="telephone" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Téléphone *
-                        </label>
-                        <input
-                          type="tel"
-                          id="telephone"
-                          name="telephone"
-                          required
-                          value={formData.telephone}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50 ${
-                            errors.telephone ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                          placeholder="+212 XXX XXX XXX"
-                        />
-                        {errors.telephone && (
-                          <p className="mt-1 text-sm text-red-600">{errors.telephone}</p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label htmlFor="niveau" className="block text-sm font-semibold text-gray-700 mb-2">
-                          Niveau scolaire *
-                        </label>
-                        <select
-                          id="niveau"
-                          name="niveau"
-                          required
-                          value={formData.niveau}
-                          onChange={handleInputChange}
-                          className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50 ${
-                            errors.niveau ? 'border-red-500' : 'border-gray-300'
-                          }`}
+                    {/* Enhanced Status Messages */}
+                    <AnimatePresence>
+                      {submitStatus === 'success' && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8, y: -20 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="mb-6 p-6 bg-green-50 border border-green-200 rounded-2xl text-green-700 shadow-lg"
                         >
-                          <option value="">Choisissez votre niveau</option>
-                          <option value="Bac+2">Bac+2</option>
-                          <option value="Bac+3">Bac+3</option>
-                          <option value="Bac+4">Bac+4</option>
-                          <option value="Bac+5">Bac+5</option>
-                        </select>
-                        {errors.niveau && (
-                          <p className="mt-1 text-sm text-red-600">{errors.niveau}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
-                        Message / Motivation *
-                      </label>
-                      <textarea
-                        id="message"
-                        name="message"
-                        required
-                        rows={5}
-                        value={formData.message}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-3 border rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50 resize-none ${
-                          errors.message ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Décrivez votre motivation pour cette formation (20 à 2000 caractères)..."
-                        minLength={20}
-                        maxLength={2000}
-                      />
-                      {errors.message && (
-                        <p className="mt-1 text-sm text-red-600">{errors.message}</p>
+                          <div className="flex items-center">
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 200 }}
+                            >
+                              <CheckCircle className="w-6 h-6 mr-3 text-green-500" />
+                            </motion.div>
+                            <div>
+                              <div className="font-semibold">Félicitations ! Votre inscription est confirmée.</div>
+                              <div className="text-sm mt-1">
+                                Notre équipe vous contactera dans les 24h pour finaliser votre admission.
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
                       )}
-                      <div className="mt-1 text-xs text-gray-500 text-right">
-                        {formData.message.length}/2000 caractères
-                      </div>
-                    </div>
 
-                    <div className="space-y-4">
-                      <div className="flex items-start">
-                        <input
-                          type="checkbox"
-                          id="horsHeures"
-                          name="horsHeures"
-                          checked={formData.horsHeures}
-                          onChange={handleInputChange}
-                          className="w-4 h-4 text-[#0F377A] border-gray-300 rounded focus:ring-[#0F377A] mt-1"
-                        />
-                        <label htmlFor="horsHeures" className="ml-2 text-sm text-gray-600">
-                          Je suis disponible pour des sessions hors heures administratives (week-ends)
-                        </label>
-                      </div>
-
-                      <div className="flex items-start">
-                        <input
-                          type="checkbox"
-                          id="consentement"
-                          name="consentement"
-                          required
-                          checked={formData.consentement}
-                          onChange={handleInputChange}
-                          className={`w-4 h-4 text-[#0F377A] border-gray-300 rounded focus:ring-[#0F377A] mt-1 ${
-                            errors.consentement ? 'border-red-500' : ''
-                          }`}
-                        />
-                        <label htmlFor="consentement" className="ml-2 text-sm text-gray-600">
-                          J'accepte le traitement de mes données conformément à la politique de confidentialité. *
-                        </label>
-                      </div>
-                      {errors.consentement && (
-                        <p className="mt-1 text-sm text-red-600 ml-6">{errors.consentement}</p>
+                      {submitStatus === 'error' && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8, y: -20 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className="mb-6 p-6 bg-red-50 border border-red-200 rounded-2xl text-red-700 shadow-lg"
+                        >
+                          <div className="flex items-center">
+                            <span className="text-xl mr-3">❌</span>
+                            <div>
+                              <div className="font-semibold">Une erreur est survenue</div>
+                              <div className="text-sm mt-1">
+                                Veuillez réessayer ou nous contacter directement au 07 18 83 42 01
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
                       )}
-                    </div>
+                    </AnimatePresence>
 
-                    <motion.button
-                      type="submit"
-                      disabled={isSubmitting || !formData.consentement}
-                      className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      whileHover={{ scale: isSubmitting || !formData.consentement ? 1 : 1.02 }}
-                      whileTap={{ scale: isSubmitting || !formData.consentement ? 1 : 0.98 }}
-                    >
-                      {isSubmitting ? (
-                        <span className="flex items-center justify-center">
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <motion.div
+                          initial={{ opacity: 0, x: -20 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.1 }}
+                          viewport={{ once: true }}
+                        >
+                          <label htmlFor="nom" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Nom complet *
+                          </label>
+                          <input
+                            type="text"
+                            id="nom"
+                            name="nom"
+                            required
+                            value={formData.nom}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-3 border-2 rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50/50 backdrop-blur-sm ${
+                              errors.nom ? 'border-red-500' : 'border-gray-200'
+                            }`}
+                            placeholder="Votre nom complet"
                           />
-                          Envoi en cours...
-                        </span>
-                      ) : (
-                        <span className="flex items-center justify-center">
-                          <Send className="w-5 h-5 mr-2" />
-                          Envoyer ma demande d'inscription
-                        </span>
-                      )}
-                    </motion.button>
+                          {errors.nom && (
+                            <motion.p 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2 text-sm text-red-600 flex items-center"
+                            >
+                              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                              {errors.nom}
+                            </motion.p>
+                          )}
+                        </motion.div>
 
-                    <p className="text-xs text-gray-500 text-center">
-                      * Champs obligatoires. Vos données sont sécurisées et utilisées uniquement pour votre inscription.
-                    </p>
-                  </form>
+                        <motion.div
+                          initial={{ opacity: 0, x: 20 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.2 }}
+                          viewport={{ once: true }}
+                        >
+                          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Email professionnel *
+                          </label>
+                          <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            required
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-3 border-2 rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50/50 backdrop-blur-sm ${
+                              errors.email ? 'border-red-500' : 'border-gray-200'
+                            }`}
+                            placeholder="votre@email.com"
+                          />
+                          {errors.email && (
+                            <motion.p 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2 text-sm text-red-600 flex items-center"
+                            >
+                              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                              {errors.email}
+                            </motion.p>
+                          )}
+                        </motion.div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <motion.div
+                          initial={{ opacity: 0, x: -20 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.3 }}
+                          viewport={{ once: true }}
+                        >
+                          <label htmlFor="telephone" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Téléphone *
+                          </label>
+                          <input
+                            type="tel"
+                            id="telephone"
+                            name="telephone"
+                            required
+                            value={formData.telephone}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-3 border-2 rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50/50 backdrop-blur-sm ${
+                              errors.telephone ? 'border-red-500' : 'border-gray-200'
+                            }`}
+                            placeholder="+212 XXX XXX XXX"
+                          />
+                          {errors.telephone && (
+                            <motion.p 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2 text-sm text-red-600 flex items-center"
+                            >
+                              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                              {errors.telephone}
+                            </motion.p>
+                          )}
+                        </motion.div>
+
+                        <motion.div
+                          initial={{ opacity: 0, x: 20 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ delay: 0.4 }}
+                          viewport={{ once: true }}
+                        >
+                          <label htmlFor="niveau" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Niveau d'études *
+                          </label>
+                          <select
+                            id="niveau"
+                            name="niveau"
+                            required
+                            value={formData.niveau}
+                            onChange={handleInputChange}
+                            className={`w-full px-4 py-3 border-2 rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50/50 backdrop-blur-sm ${
+                              errors.niveau ? 'border-red-500' : 'border-gray-200'
+                            }`}
+                          >
+                            <option value="">Sélectionnez votre niveau</option>
+                            <option value="Bac+2">Bac+2 (DEUG, DUT, BTS, DTS)</option>
+                            <option value="Bac+3">Bac+3 (Licence, Bachelor)</option>
+                            <option value="Bac+4">Bac+4 (Maîtrise, Master 1)</option>
+                            <option value="Bac+5">Bac+5 (Master, MBA)</option>
+                          </select>
+                          {errors.niveau && (
+                            <motion.p 
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2 text-sm text-red-600 flex items-center"
+                            >
+                              <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                              {errors.niveau}
+                            </motion.p>
+                          )}
+                        </motion.div>
+                      </div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        viewport={{ once: true }}
+                      >
+                        <label htmlFor="message" className="block text-sm font-semibold text-gray-700 mb-2">
+                          Motivation & Objectifs *
+                        </label>
+                        <textarea
+                          id="message"
+                          name="message"
+                          required
+                          rows={4}
+                          value={formData.message}
+                          onChange={handleInputChange}
+                          className={`w-full px-4 py-3 border-2 rounded-2xl focus:ring-2 focus:ring-[#0F377A] focus:border-transparent transition-all bg-gray-50/50 backdrop-blur-sm resize-none ${
+                            errors.message ? 'border-red-500' : 'border-gray-200'
+                          }`}
+                          placeholder="Décrivez vos motivations et objectifs professionnels (minimum 50 caractères)..."
+                          minLength={50}
+                          maxLength={2000}
+                        />
+                        {errors.message && (
+                          <motion.p 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-2 text-sm text-red-600 flex items-center"
+                          >
+                            <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                            {errors.message}
+                          </motion.p>
+                        )}
+                        <div className="mt-2 text-xs text-gray-500 text-right flex justify-between">
+                          <span>Minimum 50 caractères</span>
+                          <span>{formData.message.length}/2000 caractères</span>
+                        </div>
+                      </motion.div>
+
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                        viewport={{ once: true }}
+                        className="space-y-4 bg-gray-50/50 rounded-2xl p-6 backdrop-blur-sm"
+                      >
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            id="horsHeures"
+                            name="horsHeures"
+                            checked={formData.horsHeures}
+                            onChange={handleInputChange}
+                            className="w-5 h-5 text-[#0F377A] border-gray-300 rounded focus:ring-[#0F377A] mt-1"
+                          />
+                          <label htmlFor="horsHeures" className="text-sm text-gray-600 flex-1">
+                            Je suis disponible pour des sessions en soirée ou week-end (optionnel)
+                          </label>
+                        </div>
+
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            id="consentement"
+                            name="consentement"
+                            required
+                            checked={formData.consentement}
+                            onChange={handleInputChange}
+                            className={`w-5 h-5 text-[#0F377A] border-gray-300 rounded focus:ring-[#0F377A] mt-1 ${
+                              errors.consentement ? 'border-red-500' : ''
+                            }`}
+                          />
+                          <label htmlFor="consentement" className="text-sm text-gray-600 flex-1">
+                            J'accepte le traitement de mes données personnelles conformément à la 
+                            <a href="#" className="text-[#0F377A] hover:underline ml-1">politique de confidentialité</a>. *
+                          </label>
+                        </div>
+                        {errors.consentement && (
+                          <motion.p 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-sm text-red-600 flex items-center ml-8"
+                          >
+                            <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
+                            {errors.consentement}
+                          </motion.p>
+                        )}
+                      </motion.div>
+
+                      <motion.button
+                        type="submit"
+                        disabled={isSubmitting || !formData.consentement}
+                        className="w-full bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white py-4 px-6 rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+                        whileHover={{ scale: isSubmitting || !formData.consentement ? 1 : 1.02 }}
+                        whileTap={{ scale: isSubmitting || !formData.consentement ? 1 : 0.98 }}
+                      >
+                        <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                        
+                        {isSubmitting ? (
+                          <span className="flex items-center justify-center relative z-10">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-3"
+                            />
+                            Traitement en cours...
+                          </span>
+                        ) : (
+                          <span className="flex items-center justify-center relative z-10">
+                            <Send className="w-5 h-5 mr-2" />
+                            Soumettre ma candidature
+                          </span>
+                        )}
+                      </motion.button>
+
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        whileInView={{ opacity: 1 }}
+                        transition={{ delay: 0.8 }}
+                        viewport={{ once: true }}
+                        className="text-xs text-gray-500 text-center"
+                      >
+                        * Champs obligatoires. Vos données sont sécurisées et utilisées uniquement pour traiter votre inscription.
+                        <br />
+                        🔒 Protégé par le RGPD • Réponse sous 24h
+                      </motion.p>
+                    </form>
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -1478,100 +1897,184 @@ const handleSubmit = async (e) => {
         </div>
       </section>
 
-      {/* Témoignages */}
-      <section id="temoignages" className="py-20 bg-gradient-to-br from-gray-50 to-white">
-        <div className="container mx-auto px-4">
+      {/* Enhanced Témoignages Section */}
+      <section id="temoignages" className="py-24 bg-gradient-to-br from-gray-50 to-white relative overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute top-10 left-10 w-64 h-64 bg-gradient-to-br from-[#F58723]/10 to-[#ff9a3d]/10 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-80 h-80 bg-gradient-to-br from-[#0F377A]/10 to-[#1a4ba5]/10 rounded-full blur-3xl"></div>
+
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-20"
           >
-            <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#0F377A] to-[#1a4ba5] text-white rounded-full mb-6"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              <span className="text-sm font-semibold">TÉMOIGNAGES</span>
+            </motion.div>
+
+            <h2 className="text-5xl font-bold text-[#0F377A] mb-6 font-montserrat">
               Ils Nous <span className="text-[#F58723]">Font Confiance</span>
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Découvrez les retours d'expérience de nos anciens participants 
-              qui ont transformé leur carrière grâce à notre formation à distance.
+            
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Découvrez les parcours inspirants de nos alumni qui ont transformé 
+              leur carrière grâce à notre formation à distance.
             </p>
           </motion.div>
 
-          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 40 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 40, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ delay: index * 0.2 }}
                 viewport={{ once: true }}
-                className="bg-white rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300"
+                className="bg-white rounded-3xl p-6 shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-100 group relative overflow-hidden"
+                whileHover={{ y: -5 }}
               >
-                <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-full flex items-center justify-center text-white font-bold mr-4">
-                    {testimonial.name.charAt(0)}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#F58723] to-[#ff9a3d]"></div>
+                
+                <div className="flex items-center mb-6">
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#0F377A] to-[#1a4ba5] rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg mr-4">
+                    {testimonial.avatar}
                   </div>
                   <div>
-                    <h3 className="font-bold text-gray-800">{testimonial.name}</h3>
+                    <h3 className="font-bold text-gray-800 text-lg">{testimonial.name}</h3>
                     <p className="text-gray-600 text-sm">{testimonial.role}</p>
                   </div>
                 </div>
                 
-                <div className="flex items-center mb-3 space-x-1">
+                <div className="flex items-center mb-4 space-x-1">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, scale: 0 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.2 + i * 0.1 }}
+                      viewport={{ once: true }}
+                    >
+                      <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    </motion.div>
                   ))}
                 </div>
                 
-                <p className="text-gray-700 leading-relaxed italic">
+                <motion.p 
+                  className="text-gray-700 leading-relaxed italic relative z-10"
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  transition={{ delay: index * 0.2 + 0.3 }}
+                  viewport={{ once: true }}
+                >
                   "{testimonial.content}"
-                </p>
+                </motion.p>
+
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <Quote className="w-8 h-8 text-[#F58723]/20" />
+                </div>
               </motion.div>
             ))}
           </div>
+
+          {/* Stats Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="mt-20 bg-gradient-to-r from-[#0F377A] to-[#1a4ba5] rounded-3xl p-8 text-white shadow-2xl"
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              {[
+                { number: "97%", label: "Taux de satisfaction" },
+                { number: "750+", label: "Professionnels formés" },
+                { number: "89%", label: "Promotion de carrière" },
+                { number: "4.9/5", label: "Note moyenne" }
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.label}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.1 * index }}
+                  viewport={{ once: true }}
+                  className="text-center"
+                >
+                  <div className="text-3xl lg:text-4xl font-bold mb-2">{stat.number}</div>
+                  <div className="text-white/80 text-sm">{stat.label}</div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
+      {/* Enhanced FAQ Section */}
+      <section className="py-24 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/50"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
+            viewport={{ once: true, margin: "-100px" }}
+            className="text-center mb-20"
           >
-            <h2 className="text-4xl font-bold text-[#0F377A] mb-4 font-montserrat">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              viewport={{ once: true }}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white rounded-full mb-6"
+            >
+              <Lightbulb className="w-4 h-4 mr-2" />
+              <span className="text-sm font-semibold">FOIRE AUX QUESTIONS</span>
+            </motion.div>
+
+            <h2 className="text-5xl font-bold text-[#0F377A] mb-6 font-montserrat">
               Questions <span className="text-[#F58723]">Fréquentes</span>
             </h2>
+            
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Tout ce que vous devez savoir sur notre formation et son déroulement.
+            </p>
           </motion.div>
 
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-4xl mx-auto">
             {[
               {
-                question: "Puis-je suivre la formation à mon rythme ?",
-                answer: "Oui, tous les replays sont disponibles 24h/24 et 7j/7. Vous pouvez adapter votre apprentissage à votre emploi du temps."
+                question: "Puis-je suivre la formation tout en travaillant à temps plein ?",
+                answer: "Absolument ! Notre formation est spécialement conçue pour les professionnels en activité. Les cours sont disponibles en replay 24h/24 et les sessions live ont lieu en soirée ou le week-end pour s'adapter à votre emploi du temps."
               },
               {
-                question: "Comment se déroulent les cours en ligne ?",
-                answer: "Les cours se déroulent via Zoom pour les sessions en direct et sur notre plateforme LMS pour les contenus asynchrones, exercices et échanges."
+                question: "Comment se déroulent les évaluations et la certification ?",
+                answer: "L'évaluation est continue : études de cas, projets pratiques et QCM. La certification est délivrée après validation de tous les modules et un projet final. Notre certificat est reconnu par les professionnels du secteur."
               },
               {
-                question: "Puis-je payer en plusieurs fois ?",
-                answer: "Oui, le paiement peut être effectué en 2 tranches sans frais supplémentaires."
+                question: "Quelle est la politique de remboursement ?",
+                answer: "Nous offrons une garantie satisfait ou remboursé de 14 jours. Si la formation ne répond pas à vos attentes dans les 14 premiers jours, nous vous remboursons intégralement."
               },
               {
-                question: "Le certificat est-il reconnu ?",
-                answer: "Oui, le certificat est délivré par l'Institut Polaris.K et reconnu par les professionnels du secteur."
+                question: "Y a-t-il un accompagnement après la formation ?",
+                answer: "Oui ! Vous bénéficiez d'un accès à vie à notre communauté alumni, de sessions de networking et d'un support carrière pendant 6 mois après votre certification."
               },
               {
-                question: "Quand débute la prochaine session ?",
-                answer: "La prochaine session débutera en Novembre 2025. Les inscriptions sont ouvertes jusqu'à épuisement des places."
+                question: "Quel matériel technique est nécessaire ?",
+                answer: "Un ordinateur avec connexion internet stable. Une webcam et un micro sont recommandés pour une meilleure interaction. Tous les logiciels nécessaires sont fournis ou disponibles en version d'essai gratuite."
               },
               {
-                question: "Quel matériel est nécessaire ?",
-                answer: "Un ordinateur avec connexion internet stable. Une webcam et un micro sont recommandés pour une meilleure interaction."
+                question: "Puis-je échelonner le paiement ?",
+                answer: "Oui, le paiement peut être effectué en 2 fois sans frais supplémentaires. Des solutions de financement supplémentaires peuvent être étudiées sur demande."
               }
             ].map((item, index) => (
               <motion.div
@@ -1580,89 +2083,125 @@ const handleSubmit = async (e) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="mb-4 border border-gray-200 rounded-2xl overflow-hidden"
+                className="mb-4 border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-xl transition-shadow duration-300"
               >
-                <button 
-                  className="w-full text-left p-6 bg-gray-50 hover:bg-gray-100 transition-colors font-semibold flex justify-between items-center"
+                <motion.button 
+                  className="w-full text-left p-6 bg-gray-50 hover:bg-gray-100 transition-colors font-semibold flex justify-between items-center group"
                   onClick={() => toggleFaq(index)}
+                  whileHover={{ backgroundColor: "rgba(249, 250, 251, 1)" }}
                 >
-                  <span className="text-lg">{item.question}</span>
+                  <span className="text-lg text-gray-800 pr-4">{item.question}</span>
                   <motion.div
                     animate={{ rotate: activeFaq === index ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
+                    className="flex-shrink-0"
                   >
-                    <ArrowRight className="w-5 h-5" />
+                    <ChevronDown className="w-5 h-5 text-[#F58723] group-hover:scale-110 transition-transform" />
                   </motion.div>
-                </button>
+                </motion.button>
                 <AnimatePresence>
                   {activeFaq === index && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
+                      animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3 }}
                       className="p-6 bg-white border-t border-gray-100"
                     >
-                      <p className="text-gray-700">{item.answer}</p>
+                      <p className="text-gray-700 leading-relaxed">{item.answer}</p>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </motion.div>
             ))}
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            viewport={{ once: true }}
+            className="text-center mt-12"
+          >
+            <div className="bg-gradient-to-r from-[#0F377A] to-[#1a4ba5] rounded-3xl p-8 text-white shadow-2xl max-w-2xl mx-auto">
+              <h3 className="text-2xl font-bold mb-4 font-montserrat">
+                Une question spécifique ?
+              </h3>
+              <p className="text-white/80 mb-6">
+                Notre équipe est disponible pour répondre à toutes vos interrogations.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <motion.button
+                  onClick={openWhatsApp}
+                  className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  WhatsApp
+                </motion.button>
+                <motion.button
+                  onClick={() => scrollToSection('inscription')}
+                  className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Phone className="w-5 h-5 mr-2" />
+                  Nous appeler
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      {/* Enhanced Footer */}
+      <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-16 relative overflow-hidden">
+        {/* Footer Background */}
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-br from-[#F58723]/10 to-[#ff9a3d]/10 rounded-full -translate-x-32 -translate-y-32"></div>
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-br from-[#0F377A]/10 to-[#1a4ba5]/10 rounded-full translate-x-40 translate-y-40"></div>
+
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
+              className="lg:col-span-1"
             >
-              <div className="flex items-center mb-4">
-                {/* Logo Image - Replaced the PK circle */}
+              <div className="flex items-center mb-6">
                 <img 
                   src="/logo.png" 
                   alt="Polaris.K - Formation à Distance d'Excellence"
-                  className="h-12 lg:h-14 filter brightness-0 invert mr-3"
+                  className="h-12 lg:h-14 filter brightness-0 invert mr-4"
                 />
-                <h3 className="text-xl font-bold font-montserrat"></h3>
+                <div>
+                  <h3 className="text-xl font-bold font-montserrat"></h3>
+                  <p className="text-gray-400 text-sm"></p>
+                </div>
               </div>
-              <p className="text-gray-400 mb-4">
-                Votre partenaire d'excellence pour la formation à distance en gestion et management au Maroc.
+              <p className="text-gray-400 mb-6 leading-relaxed">
+                Votre partenaire d'excellence pour la formation à distance en gestion 
+                et management au Maroc. Développez vos compétences avec des experts.
               </p>
               <div className="flex space-x-3">
                 {[
                   { 
                     name: 'Facebook', 
-                    icon: (
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                      </svg>
-                    ),
-                    url: 'https://facebook.com'
+                    icon: <Facebook className="w-4 h-4" />,
+                    url: 'https://www.facebook.com/people/Formateur-et-expert-Elmehdi-Fejjal/61582691739308/?rdid=MWgzwruRhFXAJ5CC&share_url=https%3A%2F%2Fwww.facebook.com%2Fshare%2F1FkZpr46X7%2F'
                   },
                   { 
                     name: 'LinkedIn', 
-                    icon: (
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                      </svg>
-                    ),
-                    url: 'https://linkedin.com'
+                    icon: <Linkedin className="w-4 h-4" />,
+                    url: 'https://www.linkedin.com/in/elmehdi-fejjal-275023390/?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app'
                   },
                   { 
                     name: 'Instagram', 
-                    icon: (
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12.017 0C8.396 0 7.986.012 6.756.06 2.702.227.228 2.698.06 6.756.012 7.986 0 8.396 0 12.017c0 3.62.012 4.03.06 5.26.168 4.058 2.642 6.532 6.7 6.7 1.23.048 1.64.06 5.26.06 3.62 0 4.03-.012 5.26-.06 4.058-.168 6.532-2.642 6.7-6.7.048-1.23.06-1.64.06-5.26 0-3.62-.012-4.03-.06-5.26-.168-4.058-2.642-6.532-6.7-6.7C16.047.012 15.637 0 12.017 0zm0 2.16c3.203 0 3.585.012 4.804.06 3.252.15 4.77 1.692 4.92 4.92.048 1.219.06 1.6.06 4.804 0 3.204-.012 3.585-.06 4.804-.15 3.227-1.668 4.77-4.92 4.92-1.219.048-1.6.06-4.804.06-3.204 0-3.585-.012-4.804-.06-3.252-.15-4.77-1.692-4.92-4.92-.048-1.219-.06-1.6-.06-4.804 0-3.204.012-3.585.06-4.804.15-3.227 1.668-4.77 4.92-4.92 1.219-.048 1.6-.06 4.804-.06zm0 3.678a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88z"/>
-                      </svg>
-                    ),
-                    url: 'https://instagram.com'
+                    icon: <Instagram className="w-4 h-4" />,
+                    url: 'https://www.instagram.com/polaris.kenitra/'
                   }
                 ].map((social) => (
                   <motion.a
@@ -1670,8 +2209,8 @@ const handleSubmit = async (e) => {
                     href={social.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-8 h-8 bg-gray-700 hover:bg-[#F58723] rounded-lg transition-colors flex items-center justify-center"
-                    whileHover={{ scale: 1.1 }}
+                    className="w-10 h-10 bg-gray-700 hover:bg-[#F58723] rounded-lg transition-colors flex items-center justify-center"
+                    whileHover={{ scale: 1.1, y: -2 }}
                     whileTap={{ scale: 0.9 }}
                   >
                     {social.icon}
@@ -1686,27 +2225,25 @@ const handleSubmit = async (e) => {
               transition={{ duration: 0.6, delay: 0.1 }}
               viewport={{ once: true }}
             >
-              <h4 className="font-bold text-lg mb-4 font-montserrat">Contact</h4>
-              <div className="space-y-3">
+              <h4 className="font-bold text-lg mb-6 font-montserrat flex items-center">
+                <MapPin className="w-5 h-5 mr-2 text-[#F58723]" />
+                Contact
+              </h4>
+              <div className="space-y-4">
                 <div className="flex items-start">
-                  <svg className="w-5 h-5 mr-3 mt-1 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="text-gray-400">Angle Rue Maâmoura & Reine Élisabeth, Kénitra</span>
+                  <MapPin className="w-5 h-5 mr-3 mt-1 text-[#F58723] flex-shrink-0" />
+                  <span className="text-gray-400 text-sm leading-relaxed">
+                    Angle Rue Maâmoura & Reine Élisabeth<br />Kénitra, Maroc
+                  </span>
                 </div>
                 <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <span className="text-gray-400">0530 44 93 98 / 0665 08 92 76</span>
+                  <Phone className="w-5 h-5 mr-3 text-[#F58723] flex-shrink-0" />
+                  <span className="text-gray-400">07 18 83 42 01</span>
                 </div>
                 <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-3 text-[#F58723]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <a href="mailto:polarisprivateinstitute@gmail.com" className="text-gray-400 hover:text-[#F58723]">
-                    polarisprivateinstitute@gmail.com
+                  <Mail className="w-5 h-5 mr-3 text-[#F58723] flex-shrink-0" />
+                  <a href="mailto:fejjal1998@gmail.com" className="text-gray-400 hover:text-[#F58723] transition-colors">
+                    fejjal1998@gmail.com
                   </a>
                 </div>
               </div>
@@ -1715,11 +2252,11 @@ const handleSubmit = async (e) => {
             {[
               {
                 title: "Formations",
-                links: ["Gestion à Distance", "Contrôle de Gestion", "Audit Interne", "Management"]
+                links: ["Gestion Stratégique", "Contrôle de Gestion", "Audit Interne", "Management", "Certifications"]
               },
               {
                 title: "Ressources",
-                links: ["Brochure PDF", "FAQ", "Témoignages", "Contact"]
+                links: ["Brochure PDF", "FAQ", "Témoignages", "Blog", "Contact"]
               }
             ].map((column, index) => (
               <motion.div
@@ -1729,11 +2266,12 @@ const handleSubmit = async (e) => {
                 transition={{ duration: 0.6, delay: (index + 2) * 0.1 }}
                 viewport={{ once: true }}
               >
-                <h4 className="font-bold text-lg mb-4 font-montserrat">{column.title}</h4>
-                <ul className="space-y-2">
+                <h4 className="font-bold text-lg mb-6 font-montserrat">{column.title}</h4>
+                <ul className="space-y-3">
                   {column.links.map((link) => (
                     <li key={link}>
-                      <a href="#" className="text-gray-400 hover:text-[#F58723] transition-colors">
+                      <a href="#" className="text-gray-400 hover:text-[#F58723] transition-colors text-sm flex items-center group">
+                        <ArrowRight className="w-3 h-3 mr-2 transform group-hover:translate-x-1 transition-transform" />
                         {link}
                       </a>
                     </li>
@@ -1750,81 +2288,92 @@ const handleSubmit = async (e) => {
             viewport={{ once: true }}
             className="border-t border-gray-700 mt-12 pt-8 text-center"
           >
-            <p className="text-gray-400">
-              © 2025 Institut Polaris.K. Tous droits réservés. | Formation à Distance d'Excellence
+            <p className="text-gray-400 text-sm">
+              © 2025 Institut Polaris.K. Tous droits réservés. | 
+              <span className="text-[#F58723] mx-1">Formation à Distance d'Excellence</span>
+              | Développé avec passion
             </p>
           </motion.div>
         </div>
       </footer>
 
-      {/* Floating CTA */}
+      {/* Enhanced Floating CTA */}
       <motion.div
         className="fixed bottom-6 right-6 z-50"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 2, duration: 0.5 }}
+        initial={{ scale: 0, opacity: 0, rotate: -180 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ delay: 2, duration: 0.5, type: "spring" }}
       >
         <motion.button
           onClick={() => scrollToSection('tarifs')}
-          className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white p-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all"
+          className="bg-gradient-to-r from-[#F58723] to-[#ff9a3d] text-white p-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all relative overflow-hidden group"
           whileHover={{ scale: 1.1, rotate: 5 }}
           whileTap={{ scale: 0.9 }}
         >
-          <span className="flex items-center">
-            📅 S'inscrire
+          <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+          <span className="flex items-center relative z-10">
+            <Calendar className="w-5 h-5 mr-2" />
+            S'inscrire
           </span>
         </motion.button>
       </motion.div>
 
-      {/* Bouton WhatsApp Flottant */}
+      {/* Enhanced WhatsApp Button */}
       <motion.div
         className="fixed bottom-6 left-6 z-50"
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 2.5, duration: 0.5 }}
+        initial={{ scale: 0, opacity: 0, rotate: 180 }}
+        animate={{ scale: 1, opacity: 1, rotate: 0 }}
+        transition={{ delay: 2.5, duration: 0.5, type: "spring" }}
       >
         <motion.button
-  onClick={openWhatsApp}
-  className="bg-green-500 text-white p-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all relative overflow-hidden"
-  animate={{
-    scale: [1, 1.05, 1],
-    y: [0, -5, 0],
-    boxShadow: [
-      "0 20px 25px -5px rgba(0, 0, 0, 0.3)",
-      "0 25px 50px -5px rgba(34, 197, 94, 0.5)",
-      "0 20px 25px -5px rgba(0, 0, 0, 0.3)"
-    ]
-  }}
-  transition={{
-    duration: 2,
-    repeat: Infinity,
-    repeatType: "reverse",
-    ease: "easeInOut"
-  }}
-  whileHover={{ 
-    scale: 1.1, 
-    rotate: 5,
-    transition: { duration: 0.2 }
-  }}
-  whileTap={{ scale: 0.9 }}
->
-  {/* Shine effect */}
-  <motion.div
-    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-    animate={{ x: ["-100%", "200%"] }}
-    transition={{
-      duration: 3,
-      repeat: Infinity,
-      repeatDelay: 5
-    }}
-  />
-  
-  <span className="flex items-center relative z-10">
-    <MessageCircle className="w-6 h-6 mr-2" />
-    WhatsApp
-  </span>
-</motion.button>
+          onClick={openWhatsApp}
+          className="bg-green-500 text-white p-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all relative overflow-hidden group"
+          animate={{
+            scale: [1, 1.05, 1],
+            y: [0, -5, 0],
+            boxShadow: [
+              "0 20px 25px -5px rgba(0, 0, 0, 0.3)",
+              "0 25px 50px -5px rgba(34, 197, 94, 0.5)",
+              "0 20px 25px -5px rgba(0, 0, 0, 0.3)"
+            ]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            repeatType: "reverse",
+            ease: "easeInOut"
+          }}
+          whileHover={{ 
+            scale: 1.1, 
+            rotate: 5,
+            transition: { duration: 0.2 }
+          }}
+          whileTap={{ scale: 0.9 }}
+        >
+          {/* Shine effect */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+            animate={{ x: ["-100%", "200%"] }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              repeatDelay: 5
+            }}
+          />
+          
+          <span className="flex items-center relative z-10">
+            <MessageCircle className="w-5 h-5 mr-2" />
+            WhatsApp
+          </span>
+        </motion.button>
       </motion.div>
     </div>
   );
 }
+
+// Add missing Quote icon component
+const Quote = ({ className }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 01-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179zm10 0C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 01-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179z"/>
+  </svg>
+);
